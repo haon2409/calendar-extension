@@ -127,10 +127,34 @@ button#logout-google:hover {
     box-sizing: border-box;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis; 
     text-align: left;
     cursor: default;
-    display: block; 
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.item-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.delete-btn {
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 3px;
+    opacity: 0.6;
+    padding: 0 2px;
+    line-height: 1;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.delete-btn:hover {
+    opacity: 1;
+    color: #ff4d4d;
 }
 
 .event-item { 

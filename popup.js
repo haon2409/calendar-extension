@@ -153,11 +153,13 @@ function changeMonth(offset) {
     renderCalendar();
 }
 
-async function apiRequest(url) {
+async function apiRequest(url, options = {}) {
     const res = await fetch(url, {
+        ...options,
         headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
         }
     });
     
@@ -174,7 +176,31 @@ async function apiRequest(url) {
         throw new Error(`Lỗi HTTP: ${res.status}`);
     }
     
+    // Khi xóa thành công, API trả về 204 No Content
+    if (res.status === 204) return true;
     return res.json();
+}
+
+// 2. Hàm xử lý xóa event hoặc task
+async function deleteItem(type, id, title) {
+    const label = type === 'event' ? 'sự kiện' : 'công việc';
+    const isConfirmed = confirm(`Bạn có chắc chắn muốn xóa ${label}: "${title}"?`);
+    if (!isConfirmed) return;
+
+    try {
+        if (type === 'event') {
+            const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${id}`;
+            await apiRequest(url, { method: 'DELETE' });
+        } else if (type === 'task') {
+            const url = `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${id}`;
+            await apiRequest(url, { method: 'DELETE' });
+        }
+        // Tải lại lịch sau khi xóa thành công
+        renderCalendar();
+    } catch (e) {
+        console.error('Lỗi khi xóa:', e);
+        alert('Lỗi khi xóa: ' + e.message);
+    }
 }
 
 async function fetchAllPages(baseUrl) {
@@ -219,7 +245,25 @@ async function fetchMonthlyData(minDate, maxDate) {
             if (targetCell) {
                 const div = document.createElement('div');
                 div.className = 'event-item';
-                div.innerText = ev.summary || '(Không có tiêu đề)';
+                
+                const fullTitle = ev.summary || '(Không có tiêu đề)';
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'item-title';
+                titleSpan.innerText = fullTitle;
+                titleSpan.title = fullTitle; // Hiện đầy đủ nội dung khi hover
+
+                const delBtn = document.createElement('span');
+                delBtn.className = 'delete-btn';
+                delBtn.innerText = '×';
+                delBtn.title = 'Xóa sự kiện';
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteItem('event', ev.id, fullTitle);
+                });
+
+                div.appendChild(titleSpan);
+                div.appendChild(delBtn);
                 targetCell.appendChild(div);
             }
         });
@@ -237,7 +281,25 @@ async function fetchMonthlyData(minDate, maxDate) {
                     div.style.textDecoration = 'line-through';
                     div.style.opacity = '0.7';
                 }
-                div.innerText = task.title || '(Không có tiêu đề)';
+                
+                const fullTitle = task.title || '(Không có tiêu đề)';
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'item-title';
+                titleSpan.innerText = fullTitle;
+                titleSpan.title = fullTitle; // Hiện đầy đủ nội dung khi hover
+
+                const delBtn = document.createElement('span');
+                delBtn.className = 'delete-btn';
+                delBtn.innerText = '×';
+                delBtn.title = 'Xóa công việc';
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteItem('task', task.id, fullTitle);
+                });
+
+                div.appendChild(titleSpan);
+                div.appendChild(delBtn);
                 targetCell.appendChild(div);
             }
         });
