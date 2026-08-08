@@ -1,9 +1,7 @@
 let currentDate = new Date();
 let accessToken = "";
 
-// 1. Khởi tạo & Lắng nghe sự kiện
 document.addEventListener('DOMContentLoaded', () => {
-    // Silent login: Tự động lấy token hợp lệ
     chrome.identity.getAuthToken({ interactive: false }, function(token) {
         if (chrome.runtime.lastError || !token) {
             showLoginState(false);
@@ -14,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Khởi tạo giao diện lịch cơ bản nếu chưa đăng nhập
     if (!accessToken) {
         renderCalendar();
     }
@@ -27,21 +24,19 @@ document.getElementById('btn-today').addEventListener('click', () => {
     renderCalendar();
 });
 
-// Chuyển đổi trạng thái nút Login / Logout trên UI
 function showLoginState(isLoggedIn) {
     const loginBtn = document.getElementById('login-google');
     const logoutBtn = document.getElementById('logout-google');
     
     if (isLoggedIn) {
-        loginBtn.style.display = 'none';
-        logoutBtn.style.display = 'inline-block';
+        if (loginBtn) loginBtn.parentElement.style.display = 'none'; // Ẩn vùng chứa nút login bên dưới
+        logoutBtn.style.display = 'flex'; // Hiển thị nút icon logout trên header
     } else {
-        loginBtn.style.display = 'inline-block';
-        logoutBtn.style.display = 'none';
+        if (loginBtn) loginBtn.parentElement.style.display = 'block'; // Hiện lại vùng chứa nút login
+        logoutBtn.style.display = 'none'; // Ẩn nút icon logout
     }
 }
 
-// Nút Đồng bộ / Đăng nhập
 document.getElementById('login-google').addEventListener('click', () => {
     chrome.identity.getAuthToken({ interactive: true }, function(token) {
         if (chrome.runtime.lastError || !token) {
@@ -52,34 +47,27 @@ document.getElementById('login-google').addEventListener('click', () => {
         
         accessToken = token;
         showLoginState(true);
-        alert('Đã kết nối thành công!');
         renderCalendar();
     });
 });
 
-// Nút Đăng xuất / Đổi tài khoản
 document.getElementById('logout-google').addEventListener('click', async () => {
     if (!accessToken) return;
-    
     const tokenToRevoke = accessToken;
     
-    // 1. Gửi request thu hồi quyền truy cập (Revoke token trên server Google)
     try {
         await fetch(`https://accounts.google.com/o/oauth2/revoke?token=${tokenToRevoke}`);
     } catch (e) {
-        console.warn('Lỗi khi thu hồi token từ server Google:', e);
+        console.warn('Lỗi khi thu hồi token:', e);
     }
 
-    // 2. Xóa token lưu đệm ở trình duyệt
     chrome.identity.removeCachedAuthToken({ token: tokenToRevoke }, () => {
         accessToken = "";
         showLoginState(false);
-        alert('Đã đăng xuất thành công! Bạn có thể chọn tài khoản khác khi bấm Đồng bộ.');
         renderCalendar();
     });
 });
 
-// 2. Logic Calendar
 async function renderCalendar() {
     const grid = document.getElementById('days-grid');
     grid.innerHTML = '';
@@ -90,21 +78,36 @@ async function renderCalendar() {
     document.getElementById('month-year').innerText = `Tháng ${month + 1}, ${year}`;
     
     const firstDay = new Date(year, month, 1).getDay();
-    // Chuyển Chủ nhật (0) thành vị trí cuối cùng trong tuần (Thứ 2 bắt đầu)
     const startOffset = firstDay === 0 ? 6 : firstDay - 1; 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevMonthDays = new Date(year, month, 0).getDate();
 
     const today = new Date();
     const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
 
-    // Render ô trống đầu tháng
-    for (let i = 0; i < startOffset; i++) {
-        const emptyCell = document.createElement('div');
-        emptyCell.className = 'day-cell empty';
-        grid.appendChild(emptyCell);
+    let minFetchDate = new Date(year, month, 1 - startOffset);
+    let totalCells = startOffset + daysInMonth;
+    let remainder = totalCells % 7;
+    let endOffset = remainder === 0 ? 0 : 7 - remainder;
+    let maxFetchDate = new Date(year, month, daysInMonth + endOffset);
+
+    for (let i = startOffset - 1; i >= 0; i--) {
+        const dayNum = prevMonthDays - i;
+        const prevMonth = month === 0 ? 11 : month - 1;
+        const prevYear = month === 0 ? year - 1 : year;
+        const dateStr = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+        
+        const cell = document.createElement('div');
+        cell.className = 'day-cell other-month';
+        cell.id = `date-${dateStr}`;
+
+        const dateNum = document.createElement('div');
+        dateNum.className = 'date-num';
+        dateNum.innerText = dayNum;
+        cell.appendChild(dateNum);
+        grid.appendChild(cell);
     }
 
-    // Render ngày
     for (let i = 1; i <= daysInMonth; i++) {
         const cell = document.createElement('div');
         cell.className = 'day-cell';
@@ -124,9 +127,24 @@ async function renderCalendar() {
         grid.appendChild(cell);
     }
 
-    // Tự động tải dữ liệu nếu đã có token
+    for (let i = 1; i <= endOffset; i++) {
+        const nextMonth = month === 11 ? 0 : month + 1;
+        const nextYear = month === 11 ? year + 1 : year;
+        const dateStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+        
+        const cell = document.createElement('div');
+        cell.className = 'day-cell other-month';
+        cell.id = `date-${dateStr}`;
+
+        const dateNum = document.createElement('div');
+        dateNum.className = 'date-num';
+        dateNum.innerText = i;
+        cell.appendChild(dateNum);
+        grid.appendChild(cell);
+    }
+
     if (accessToken) {
-        await fetchMonthlyData(year, month);
+        await fetchMonthlyData(minFetchDate, maxFetchDate);
     }
 }
 
@@ -135,7 +153,6 @@ function changeMonth(offset) {
     renderCalendar();
 }
 
-// 3. Logic Fetch API Google Calendar & Tasks (Có bẫy lỗi 401)
 async function apiRequest(url) {
     const res = await fetch(url, {
         headers: {
@@ -144,14 +161,13 @@ async function apiRequest(url) {
         }
     });
     
-    // Nếu bị từ chối cấp quyền (HTTP 401 Unauthorized - token hết hạn hoặc bị hủy)
     if (res.status === 401) {
         if (accessToken) {
             chrome.identity.removeCachedAuthToken({ token: accessToken }, () => {});
             accessToken = "";
             showLoginState(false);
         }
-        throw new Error('Phiên làm việc hết hạn. Vui lòng đăng nhập lại.');
+        throw new Error('Phiên làm việc hết hạn.');
     }
     
     if (!res.ok) {
@@ -161,7 +177,6 @@ async function apiRequest(url) {
     return res.json();
 }
 
-// Hàm hỗ trợ tải toàn bộ dữ liệu qua các trang (Pagination)
 async function fetchAllPages(baseUrl) {
     let items = [];
     let pageToken = '';
@@ -181,9 +196,9 @@ async function fetchAllPages(baseUrl) {
     return items;
 }
 
-async function fetchMonthlyData(year, month) {
-    const timeMin = new Date(year, month, 1).toISOString();
-    const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+async function fetchMonthlyData(minDate, maxDate) {
+    const timeMin = minDate.toISOString();
+    const timeMax = new Date(maxDate.setHours(23, 59, 59, 999)).toISOString();
 
     const eventsUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
     const tasksUrl = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=true&showHidden=true&dueMin=${timeMin}&dueMax=${timeMax}`;
@@ -194,7 +209,6 @@ async function fetchMonthlyData(year, month) {
             fetchAllPages(tasksUrl)
         ]);
 
-        // Đổ Events vào lịch
         eventsItems.forEach(ev => {
             const dateVal = ev.start?.dateTime || ev.start?.date;
             if (!dateVal) return;
@@ -210,7 +224,6 @@ async function fetchMonthlyData(year, month) {
             }
         });
 
-        // Đổ Tasks vào lịch
         tasksItems.forEach(task => {
             if (!task.due) return;
             
@@ -229,6 +242,6 @@ async function fetchMonthlyData(year, month) {
             }
         });
     } catch (e) {
-        console.error('Lỗi tải dữ liệu lịch và task:', e);
+        console.error('Lỗi tải dữ liệu lịch:', e);
     }
 }

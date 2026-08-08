@@ -8,10 +8,16 @@
     <div class="calendar-container">
         <div class="header">
             <h2 id="month-year">Tháng 8, 2026</h2>
-            <div class="nav-buttons">
-                <button id="btn-prev">&#8592;</button>
-                <button id="btn-today">&#9679;</button>
-                <button id="btn-next">&#8594;</button>
+            <div class="header-right">
+                <!-- Nút Đăng xuất dạng icon SVG -->
+                <button id="logout-google" title="Đăng xuất / Đổi tài khoản" style="display: none;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
+                <div class="nav-buttons">
+                    <button id="btn-prev">&#8592;</button>
+                    <button id="btn-today">&#9679;</button>
+                    <button id="btn-next">&#8594;</button>
+                </div>
             </div>
         </div>
 
@@ -28,11 +34,9 @@
         <div class="days-grid" id="days-grid"></div>
     </div>
 
-    <!-- Chỉ giữ lại nút đăng nhập (sẽ ẩn đi nếu đã có token) -->
-    <!-- Khu vực quản lý tài khoản -->
+    <!-- Nút Đăng nhập giữ nguyên bên dưới khi chưa kết nối -->
     <div class="google-sync" style="text-align: center; margin-top: 15px;">
         <button id="login-google">Đồng bộ với Google</button>
-        <button id="logout-google" style="display: none; background: #d9534f;">Đăng xuất / Đổi tài khoản</button>
     </div>
 
     <script src="popup.js"></script>
