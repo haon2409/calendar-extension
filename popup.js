@@ -1,5 +1,6 @@
 let currentDate = new Date();
 let accessToken = "";
+let activeTaskContext = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     chrome.identity.getAuthToken({ interactive: false }, function(token) {
@@ -17,6 +18,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Ẩn context menu khi click ra ngoài
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('custom-context-menu');
+    if (menu && !menu.contains(e.target)) {
+        menu.style.display = 'none';
+    }
+});
+
+// Xử lý click chọn tùy chọn trong context menu
+document.getElementById('ctx-toggle-status').addEventListener('click', () => {
+    const menu = document.getElementById('custom-context-menu');
+    if (menu) menu.style.display = 'none';
+
+    if (activeTaskContext) {
+        toggleTaskStatus(activeTaskContext.id, activeTaskContext.status);
+    }
+});
+
 document.getElementById('btn-prev').addEventListener('click', () => changeMonth(-1));
 document.getElementById('btn-next').addEventListener('click', () => changeMonth(1));
 document.getElementById('btn-today').addEventListener('click', () => {
@@ -29,11 +48,11 @@ function showLoginState(isLoggedIn) {
     const logoutBtn = document.getElementById('logout-google');
     
     if (isLoggedIn) {
-        if (loginBtn) loginBtn.parentElement.style.display = 'none'; // Ẩn vùng chứa nút login bên dưới
-        logoutBtn.style.display = 'flex'; // Hiển thị nút icon logout trên header
+        if (loginBtn) loginBtn.parentElement.style.display = 'none';
+        logoutBtn.style.display = 'flex';
     } else {
-        if (loginBtn) loginBtn.parentElement.style.display = 'block'; // Hiện lại vùng chứa nút login
-        logoutBtn.style.display = 'none'; // Ẩn nút icon logout
+        if (loginBtn) loginBtn.parentElement.style.display = 'block';
+        logoutBtn.style.display = 'none';
     }
 }
 
@@ -67,6 +86,97 @@ document.getElementById('logout-google').addEventListener('click', async () => {
         renderCalendar();
     });
 });
+
+function changeMonth(offset) {
+    currentDate.setMonth(currentDate.getMonth() + offset);
+    renderCalendar();
+}
+
+async function apiRequest(url, options = {}) {
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+        }
+    });
+    
+    if (res.status === 401) {
+        if (accessToken) {
+            chrome.identity.removeCachedAuthToken({ token: accessToken }, () => {});
+            accessToken = "";
+            showLoginState(false);
+        }
+        throw new Error('Phiên làm việc hết hạn.');
+    }
+    
+    if (!res.ok) {
+        throw new Error(`Lỗi HTTP: ${res.status}`);
+    }
+    
+    if (res.status === 204) return true;
+    return res.json();
+}
+
+async function fetchAllPages(baseUrl) {
+    let items = [];
+    let pageToken = '';
+
+    do {
+        const separator = baseUrl.includes('?') ? '&' : '?';
+        const urlWithToken = pageToken ? `${baseUrl}${separator}pageToken=${pageToken}` : baseUrl;
+        const data = await apiRequest(urlWithToken);
+
+        if (data && data.items) {
+            items = items.concat(data.items);
+        }
+        
+        pageToken = data.nextPageToken || '';
+    } while (pageToken);
+
+    return items;
+}
+
+async function deleteItem(type, id, title) {
+    const label = type === 'event' ? 'sự kiện' : 'công việc';
+    const isConfirmed = confirm(`Bạn có chắc chắn muốn xóa ${label}: "${title}"?`);
+    if (!isConfirmed) return;
+
+    try {
+        if (type === 'event') {
+            const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${id}`;
+            await apiRequest(url, { method: 'DELETE' });
+        } else if (type === 'task') {
+            const url = `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${id}`;
+            await apiRequest(url, { method: 'DELETE' });
+        }
+        renderCalendar();
+    } catch (e) {
+        console.error('Lỗi khi xóa:', e);
+        alert('Lỗi khi xóa: ' + e.message);
+    }
+}
+
+async function toggleTaskStatus(taskId, currentStatus) {
+    const isCompleted = currentStatus === 'completed';
+    const newStatus = isCompleted ? 'needsAction' : 'completed';
+    const url = `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${taskId}`;
+
+    try {
+        await apiRequest(url, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                status: newStatus,
+                completed: newStatus === 'completed' ? new Date().toISOString() : null
+            })
+        });
+        renderCalendar();
+    } catch (e) {
+        console.error('Lỗi đổi trạng thái task:', e);
+        alert('Không thể cập nhật trạng thái công việc: ' + e.message);
+    }
+}
 
 async function renderCalendar() {
     const grid = document.getElementById('days-grid');
@@ -148,80 +258,6 @@ async function renderCalendar() {
     }
 }
 
-function changeMonth(offset) {
-    currentDate.setMonth(currentDate.getMonth() + offset);
-    renderCalendar();
-}
-
-async function apiRequest(url, options = {}) {
-    const res = await fetch(url, {
-        ...options,
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            ...(options.headers || {})
-        }
-    });
-    
-    if (res.status === 401) {
-        if (accessToken) {
-            chrome.identity.removeCachedAuthToken({ token: accessToken }, () => {});
-            accessToken = "";
-            showLoginState(false);
-        }
-        throw new Error('Phiên làm việc hết hạn.');
-    }
-    
-    if (!res.ok) {
-        throw new Error(`Lỗi HTTP: ${res.status}`);
-    }
-    
-    // Khi xóa thành công, API trả về 204 No Content
-    if (res.status === 204) return true;
-    return res.json();
-}
-
-// 2. Hàm xử lý xóa event hoặc task
-async function deleteItem(type, id, title) {
-    const label = type === 'event' ? 'sự kiện' : 'công việc';
-    const isConfirmed = confirm(`Bạn có chắc chắn muốn xóa ${label}: "${title}"?`);
-    if (!isConfirmed) return;
-
-    try {
-        if (type === 'event') {
-            const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${id}`;
-            await apiRequest(url, { method: 'DELETE' });
-        } else if (type === 'task') {
-            const url = `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${id}`;
-            await apiRequest(url, { method: 'DELETE' });
-        }
-        // Tải lại lịch sau khi xóa thành công
-        renderCalendar();
-    } catch (e) {
-        console.error('Lỗi khi xóa:', e);
-        alert('Lỗi khi xóa: ' + e.message);
-    }
-}
-
-async function fetchAllPages(baseUrl) {
-    let items = [];
-    let pageToken = '';
-
-    do {
-        const separator = baseUrl.includes('?') ? '&' : '?';
-        const urlWithToken = pageToken ? `${baseUrl}${separator}pageToken=${pageToken}` : baseUrl;
-        const data = await apiRequest(urlWithToken);
-
-        if (data && data.items) {
-            items = items.concat(data.items);
-        }
-        
-        pageToken = data.nextPageToken || '';
-    } while (pageToken);
-
-    return items;
-}
-
 async function fetchMonthlyData(minDate, maxDate) {
     const timeMin = minDate.toISOString();
     const timeMax = new Date(maxDate.setHours(23, 59, 59, 999)).toISOString();
@@ -251,7 +287,7 @@ async function fetchMonthlyData(minDate, maxDate) {
                 const titleSpan = document.createElement('span');
                 titleSpan.className = 'item-title';
                 titleSpan.innerText = fullTitle;
-                titleSpan.title = fullTitle; // Hiện đầy đủ nội dung khi hover
+                titleSpan.title = fullTitle;
 
                 const delBtn = document.createElement('span');
                 delBtn.className = 'delete-btn';
@@ -287,7 +323,7 @@ async function fetchMonthlyData(minDate, maxDate) {
                 const titleSpan = document.createElement('span');
                 titleSpan.className = 'item-title';
                 titleSpan.innerText = fullTitle;
-                titleSpan.title = fullTitle; // Hiện đầy đủ nội dung khi hover
+                titleSpan.title = fullTitle;
 
                 const delBtn = document.createElement('span');
                 delBtn.className = 'delete-btn';
@@ -300,6 +336,30 @@ async function fetchMonthlyData(minDate, maxDate) {
 
                 div.appendChild(titleSpan);
                 div.appendChild(delBtn);
+
+                div.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    activeTaskContext = task;
+
+                    const menu = document.getElementById('custom-context-menu');
+                    const toggleItem = document.getElementById('ctx-toggle-status');
+
+                    toggleItem.innerText = task.status === 'completed' 
+                        ? 'Đánh dấu chưa hoàn thành' 
+                        : 'Đánh dấu hoàn thành';
+
+                    menu.style.display = 'block';
+                    
+                    const rect = document.body.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+
+                    menu.style.left = `${x}px`;
+                    menu.style.top = `${y}px`;
+                });
+
                 targetCell.appendChild(div);
             }
         });
