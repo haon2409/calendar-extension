@@ -1,6 +1,8 @@
 let currentDate = new Date();
 let accessToken = "";
 let activeTaskContext = null;
+let activeCellDateStr = null;
+let createType = null; // 'task' hoặc 'event'
 
 document.addEventListener('DOMContentLoaded', () => {
     chrome.identity.getAuthToken({ interactive: false }, function(token) {
@@ -22,19 +24,101 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('custom-context-menu');
     if (menu && !menu.contains(e.target)) {
-        menu.style.display = 'none';
+        hideContextMenu();
     }
 });
 
-// Xử lý click chọn tùy chọn trong context menu
-document.getElementById('ctx-toggle-status').addEventListener('click', () => {
+function hideContextMenu() {
     const menu = document.getElementById('custom-context-menu');
     if (menu) menu.style.display = 'none';
+}
 
+// Xử lý click tùy chọn trong context menu
+document.getElementById('ctx-toggle-status').addEventListener('click', () => {
+    hideContextMenu();
     if (activeTaskContext) {
         toggleTaskStatus(activeTaskContext.id, activeTaskContext.status);
     }
 });
+
+document.getElementById('ctx-add-task').addEventListener('click', () => {
+    hideContextMenu();
+    openAddModal('task');
+});
+
+document.getElementById('ctx-add-event').addEventListener('click', () => {
+    hideContextMenu();
+    openAddModal('event');
+});
+
+// Quản lý Modal nhập title
+function openAddModal(type) {
+    createType = type;
+    const modal = document.getElementById('add-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalInput = document.getElementById('modal-input-title');
+
+    modalTitle.innerText = type === 'event' 
+        ? `Thêm Sự kiện (${activeCellDateStr})` 
+        : `Thêm Công việc (${activeCellDateStr})`;
+    
+    modalInput.value = '';
+    modal.style.display = 'flex';
+    modalInput.focus();
+}
+
+function closeAddModal() {
+    document.getElementById('add-modal').style.display = 'none';
+    createType = null;
+}
+
+document.getElementById('modal-btn-cancel').addEventListener('click', closeAddModal);
+document.getElementById('modal-btn-ok').addEventListener('click', submitAddItem);
+
+document.getElementById('modal-input-title').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        submitAddItem();
+    } else if (e.key === 'Escape') {
+        closeAddModal();
+    }
+});
+
+async function submitAddItem() {
+    const titleInput = document.getElementById('modal-input-title');
+    const title = titleInput.value.trim();
+    if (!title) {
+        alert('Vui lòng nhập tiêu đề!');
+        return;
+    }
+
+    try {
+        if (createType === 'event') {
+            const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+            await apiRequest(url, {
+                method: 'POST',
+                body: JSON.stringify({
+                    summary: title,
+                    start: { date: activeCellDateStr },
+                    end: { date: activeCellDateStr }
+                })
+            });
+        } else if (createType === 'task') {
+            const url = 'https://www.googleapis.com/tasks/v1/lists/@default/tasks';
+            await apiRequest(url, {
+                method: 'POST',
+                body: JSON.stringify({
+                    title: title,
+                    due: `${activeCellDateStr}T00:00:00.000Z`
+                })
+            });
+        }
+        closeAddModal();
+        renderCalendar();
+    } catch (e) {
+        console.error('Lỗi khi tạo mới:', e);
+        alert('Không thể tạo mới: ' + e.message);
+    }
+}
 
 document.getElementById('btn-prev').addEventListener('click', () => changeMonth(-1));
 document.getElementById('btn-next').addEventListener('click', () => changeMonth(1));
@@ -178,6 +262,31 @@ async function toggleTaskStatus(taskId, currentStatus) {
     }
 }
 
+function attachCellContextMenu(cell, dateStr) {
+    cell.addEventListener('contextmenu', (e) => {
+        if (e.target.closest('.task-item') || e.target.closest('.event-item')) {
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+
+        activeCellDateStr = dateStr;
+
+        const menu = document.getElementById('custom-context-menu');
+        document.getElementById('ctx-toggle-status').style.display = 'none';
+        document.getElementById('ctx-add-task').style.display = 'block';
+        document.getElementById('ctx-add-event').style.display = 'block';
+
+        menu.style.display = 'block';
+        const rect = document.body.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        menu.style.left = `${x}px`;
+        menu.style.top = `${y}px`;
+    });
+}
+
 async function renderCalendar() {
     const grid = document.getElementById('days-grid');
     grid.innerHTML = '';
@@ -215,6 +324,8 @@ async function renderCalendar() {
         dateNum.className = 'date-num';
         dateNum.innerText = dayNum;
         cell.appendChild(dateNum);
+        
+        attachCellContextMenu(cell, dateStr);
         grid.appendChild(cell);
     }
 
@@ -234,6 +345,8 @@ async function renderCalendar() {
         }
         
         cell.appendChild(dateNum);
+
+        attachCellContextMenu(cell, dateStr);
         grid.appendChild(cell);
     }
 
@@ -250,6 +363,8 @@ async function renderCalendar() {
         dateNum.className = 'date-num';
         dateNum.innerText = i;
         cell.appendChild(dateNum);
+
+        attachCellContextMenu(cell, dateStr);
         grid.appendChild(cell);
     }
 
@@ -349,6 +464,10 @@ async function fetchMonthlyData(minDate, maxDate) {
                     toggleItem.innerText = task.status === 'completed' 
                         ? 'Đánh dấu chưa hoàn thành' 
                         : 'Đánh dấu hoàn thành';
+
+                    toggleItem.style.display = 'block';
+                    document.getElementById('ctx-add-task').style.display = 'none';
+                    document.getElementById('ctx-add-event').style.display = 'none';
 
                     menu.style.display = 'block';
                     

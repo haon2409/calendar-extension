@@ -39,10 +39,25 @@
         <button id="login-google">Đồng bộ với Google</button>
     </div>
 
+    <!-- Context Menu cho Task / Event / Cell -->
     <div id="custom-context-menu" class="context-menu" style="display: none;">
-        <div id="ctx-toggle-status" class="context-menu-item"></div>
+        <div id="ctx-add-task" class="context-menu-item">+ Task</div>
+        <div id="ctx-add-event" class="context-menu-item">+ Event</div>
+        <div id="ctx-toggle-status" class="context-menu-item" style="display: none;"></div>
     </div>
-    
+
+    <!-- Modal nhập Title cho Task/Event -->
+    <div id="add-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3 id="modal-title">Thêm mới</h3>
+            <input type="text" id="modal-input-title" placeholder="Nhập tiêu đề..." autocomplete="off" />
+            <div class="modal-actions">
+                <button id="modal-btn-cancel">Cancel</button>
+                <button id="modal-btn-ok">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script src="popup.js"></script>
 </body>
 </html>
