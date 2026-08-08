@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="calendar-container">
+        <div class="header">
+            <h2 id="month-year">Tháng 8, 2026</h2>
+            <div class="nav-buttons">
+                <button id="btn-prev">&#8592;</button>
+                <button id="btn-today">&#9679;</button>
+                <button id="btn-next">&#8594;</button>
+            </div>
+        </div>
+
+        <div class="weekdays">
+            <div class="cyan">T2</div>
+            <div class="cyan">T3</div>
+            <div class="cyan">T4</div>
+            <div class="cyan">T5</div>
+            <div class="cyan">T6</div>
+            <div class="orange">T7</div>
+            <div class="orange">CN</div>
+        </div>
+
+        <div class="days-grid" id="days-grid"></div>
+    </div>
+
+    <!-- Chỉ giữ lại nút đăng nhập (sẽ ẩn đi nếu đã có token) -->
+    <!-- Khu vực quản lý tài khoản -->
+    <div class="google-sync" style="text-align: center; margin-top: 15px;">
+        <button id="login-google">Đồng bộ với Google</button>
+        <button id="logout-google" style="display: none; background: #d9534f;">Đăng xuất / Đổi tài khoản</button>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
