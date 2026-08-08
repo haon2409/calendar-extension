@@ -3,17 +3,23 @@ let accessToken = "";
 
 // 1. Khởi tạo & Lắng nghe sự kiện
 document.addEventListener('DOMContentLoaded', () => {
-    chrome.storage.local.get(['googleToken'], (res) => {
-        if (res.googleToken) {
-            accessToken = res.googleToken;
-            document.getElementById('login-google').style.display = 'none';
-            document.getElementById('logout-google').style.display = 'inline-block';
-        } else {
+    // Silent login: Tự động lấy token hợp lệ (hoặc làm mới nếu đã hết hạn)
+    chrome.identity.getAuthToken({ interactive: false }, function(token) {
+        if (chrome.runtime.lastError || !token) {
             document.getElementById('login-google').style.display = 'inline-block';
             document.getElementById('logout-google').style.display = 'none';
+        } else {
+            accessToken = token;
+            document.getElementById('login-google').style.display = 'none';
+            document.getElementById('logout-google').style.display = 'inline-block';
+            renderCalendar();
         }
     });
-    renderCalendar();
+    
+    // Khởi tạo giao diện lịch cơ bản
+    if (!accessToken) {
+        renderCalendar();
+    }
 });
 
 document.getElementById('btn-prev').addEventListener('click', () => changeMonth(-1));
@@ -33,29 +39,23 @@ document.getElementById('login-google').addEventListener('click', () => {
         }
         
         accessToken = token;
-        chrome.storage.local.set({ googleToken: token }, () => {
-            document.getElementById('login-google').style.display = 'none';
-            document.getElementById('logout-google').style.display = 'inline-block';
-            alert('Đã kết nối thành công!');
-            renderCalendar();
-        });
+        document.getElementById('login-google').style.display = 'none';
+        document.getElementById('logout-google').style.display = 'inline-block';
+        alert('Đã kết nối thành công!');
+        renderCalendar();
     });
 });
 
-// Nút Đăng xuất / Hủy token cũ để cấp lại quyền
+// Nút Đăng xuất
 document.getElementById('logout-google').addEventListener('click', () => {
     if (!accessToken) return;
     
-    // Xóa cache token hiện tại trong Chrome Identity
     chrome.identity.removeCachedAuthToken({ token: accessToken }, function() {
-        // Xóa token khỏi storage
-        chrome.storage.local.remove('googleToken', () => {
-            accessToken = "";
-            document.getElementById('login-google').style.display = 'inline-block';
-            document.getElementById('logout-google').style.display = 'none';
-            alert('Đã đăng xuất thành công! Vui lòng bấm Đồng bộ lại để cấp đủ quyền.');
-            renderCalendar();
-        });
+        accessToken = "";
+        document.getElementById('login-google').style.display = 'inline-block';
+        document.getElementById('logout-google').style.display = 'none';
+        alert('Đã đăng xuất thành công! Vui lòng bấm Đồng bộ lại để cấp đủ quyền.');
+        renderCalendar();
     });
 });
 
@@ -123,6 +123,12 @@ async function apiRequest(url) {
             'Content-Type': 'application/json'
         }
     });
+    
+    // Bẫy lỗi HTTP (ví dụ: 401 Unauthorized do token hết hạn)
+    if (!res.ok) {
+        throw new Error(`Lỗi HTTP: ${res.status}`);
+    }
+    
     return res.json();
 }
 
@@ -130,12 +136,11 @@ async function fetchMonthlyData(year, month) {
     const timeMin = new Date(year, month, 1).toISOString();
     const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
 
-    const eventsUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
+    // Ép maxResults lên 2500 (mức tối đa của Calendar API) để đảm bảo gom đủ mọi sự kiện trong tháng
+    const eventsUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=2500`;
     
-    // Bổ sung đầy đủ showCompleted, showHidden và khoảng completedMin/completedMax theo tháng
-    // const tasksUrl = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?dueMin=${timeMin}&dueMax=${timeMax}&completedMin=${timeMin}&completedMax=${timeMax}&showCompleted=true&showHidden=true`;
-    // Bỏ completedMin/completedMax, chỉ dùng showCompleted và showHidden
-    const tasksUrl = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=true&showHidden=true`;
+    // Đưa dueMin và dueMax trở lại để lọc đúng tháng. Kẹp thêm maxResults=100 (tối đa của Tasks API).
+    const tasksUrl = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=true&showHidden=true&dueMin=${timeMin}&dueMax=${timeMax}&maxResults=100`;
 
     try {
         const [eventsData, tasksData] = await Promise.all([
