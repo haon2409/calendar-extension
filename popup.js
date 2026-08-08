@@ -131,7 +131,11 @@ async function fetchMonthlyData(year, month) {
     const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
 
     const eventsUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
-    const tasksUrl = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?dueMin=${timeMin}&dueMax=${timeMax}`;
+    
+    // Bổ sung đầy đủ showCompleted, showHidden và khoảng completedMin/completedMax theo tháng
+    // const tasksUrl = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?dueMin=${timeMin}&dueMax=${timeMax}&completedMin=${timeMin}&completedMax=${timeMax}&showCompleted=true&showHidden=true`;
+    // Bỏ completedMin/completedMax, chỉ dùng showCompleted và showHidden
+    const tasksUrl = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=true&showHidden=true`;
 
     try {
         const [eventsData, tasksData] = await Promise.all([
@@ -168,6 +172,10 @@ async function fetchMonthlyData(year, month) {
                 if (targetCell) {
                     const div = document.createElement('div');
                     div.className = 'task-item';
+                    if (task.status === 'completed') {
+                        div.style.textDecoration = 'line-through';
+                        div.style.opacity = '0.7';
+                    }
                     div.innerText = task.title;
                     targetCell.appendChild(div);
                 }
