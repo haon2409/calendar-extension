@@ -25,7 +25,7 @@ function setupDailyAlarm() {
 
 async function updateIcon() {
     const date = new Date();
-    const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const days = ['CN', '2', '3', '4', '5', '6', '7'];
     const day = days[date.getDay()];
     const dateNum = date.getDate().toString();
 
@@ -40,12 +40,16 @@ async function updateIcon() {
     // Xóa toàn bộ
     ctx.clearRect(0, 0, 128, 128);
 
-    // Xác định màu nền cho phần "Thứ" dựa theo ngày (Chủ Nhật: Đỏ, Thứ 7: Cam, Ngày thường: Xanh cyan)
+    // Xác định màu nền và màu chữ cho phần "Thứ" dựa theo ngày
     let dayBgColor = '#1bb5d6';
+    let dayTextColor = '#000000';
+
     if (date.getDay() === 0) {
         dayBgColor = '#ff4d4d'; 
+        dayTextColor = '#ffffff'; 
     } else if (date.getDay() === 6) {
         dayBgColor = '#fbbc04'; 
+        dayTextColor = '#ffffff'; 
     }
 
     // 1. Nền trên cho "Thứ" (chiều cao từ 0 đến 64)
@@ -56,12 +60,12 @@ async function updateIcon() {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 64, 128, 64);
 
-    // 3. Vẽ viền Trái, Dưới, Phải cho phần "Ngày" (Giảm độ dày xuống 6px)
+    // 3. Vẽ viền Trái, Dưới, Phải cho phần "Ngày" (Độ dày 6px)
     const borderWidth = 6;
     ctx.fillStyle = borderColor;
-    ctx.fillRect(0, 64, borderWidth, 64);                           // Viền trái
-    ctx.fillRect(128 - borderWidth, 64, borderWidth, 64);           // Viền phải
-    ctx.fillRect(0, 128 - borderWidth, 128, borderWidth);           // Viền dưới
+    ctx.fillRect(0, 64, borderWidth, 64);                           
+    ctx.fillRect(128 - borderWidth, 64, borderWidth, 64);           
+    ctx.fillRect(0, 128 - borderWidth, 128, borderWidth);           
 
     // Thiết lập chung cho text
     ctx.textAlign = 'center';
@@ -72,10 +76,10 @@ async function updateIcon() {
     ctx.scale(1.35, 1.0); 
     const scaledX = 64 / 1.35;
 
-    // Render "Thứ" với chữ màu trắng trên nền màu tương ứng
-    ctx.fillStyle = '#ffffff'; 
-    ctx.font = 'bold 50px sans-serif';
-    ctx.fillText(day, scaledX, 32);
+    // Render "Thứ" với kích thước tối đa (64px) và căn lại tâm y (34px để bù font metric)
+    ctx.fillStyle = dayTextColor; 
+    ctx.font = 'bold 64px sans-serif';
+    ctx.fillText(day, scaledX, 34);
 
     // Render "Ngày" chữ đen trên nền trắng
     ctx.fillStyle = '#000000';
