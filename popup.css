@@ -99,7 +99,7 @@ button#logout-google:hover {
     padding-bottom: 2px; 
     border: 1px solid #3b3e43;
     background-color: #2c2f34;
-    overflow: hidden; 
+    overflow-y: auto; /* Cho phép cuộn dọc khi nội dung vượt quá chiều cao tối đa */
 }
 
 .day-cell.other-month {
@@ -143,25 +143,14 @@ button#logout-google:hover {
     align-items: center;
 }
 
-/* .event-item { 
-    background: #1bb5d6; 
-    color: white; 
-} */
-
 .event-item {
     background-color: #1bb5d6; /* Màu xanh cyan cho Event */        
     color: #000;
 }
 
-/* .task-item { 
-    background: #4a4d53; 
-    color: #fbbc04; 
-    border-left: 2px solid #fbbc04; 
-} */
-
 .task-item {
-    background-color: #3b5998; /* Hoặc mã màu xanh dương/tím than tương ứng Task trong ảnh */    
-    color: #000;
+    background-color: #3b5998; /* Hoặc mã màu xanh dương/tím than tương ứng Task trong ảnh */        
+    color: white; 
 }
 
 .item-title {
