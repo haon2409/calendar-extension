@@ -310,6 +310,7 @@ async function renderCalendar() {
     let endOffset = remainder === 0 ? 0 : 7 - remainder;
     let maxFetchDate = new Date(year, month, daysInMonth + endOffset);
 
+    // 1. Vòng lặp: Render các ngày của tháng trước
     for (let i = startOffset - 1; i >= 0; i--) {
         const dayNum = prevMonthDays - i;
         const prevMonth = month === 0 ? 11 : month - 1;
@@ -320,21 +321,36 @@ async function renderCalendar() {
         cell.className = 'day-cell other-month';
         cell.id = `date-${dateStr}`;
 
+        const dateHeader = document.createElement('div');
+        dateHeader.className = 'date-header';
+
         const dateNum = document.createElement('div');
         dateNum.className = 'date-num';
         dateNum.innerText = dayNum;
-        cell.appendChild(dateNum);
+        
+        const lunarDate = document.createElement('div');
+        lunarDate.className = 'lunar-date';
+        const lunarInfo = getLunarDate(dayNum, prevMonth + 1, prevYear);
+        lunarDate.innerText = `${lunarInfo[0]}/${lunarInfo[1]}`;
+
+        dateHeader.appendChild(dateNum);
+        dateHeader.appendChild(lunarDate);
+        cell.appendChild(dateHeader);
         
         attachCellContextMenu(cell, dateStr);
         grid.appendChild(cell);
     }
 
+    // 2. Vòng lặp: Render các ngày của tháng hiện tại
     for (let i = 1; i <= daysInMonth; i++) {
         const cell = document.createElement('div');
         cell.className = 'day-cell';
         
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
         cell.id = `date-${dateStr}`;
+
+        const dateHeader = document.createElement('div');
+        dateHeader.className = 'date-header';
 
         const dateNum = document.createElement('div');
         dateNum.className = 'date-num';
@@ -344,12 +360,20 @@ async function renderCalendar() {
             dateNum.classList.add('today');
         }
         
-        cell.appendChild(dateNum);
+        const lunarDate = document.createElement('div');
+        lunarDate.className = 'lunar-date';
+        const lunarInfo = getLunarDate(i, month + 1, year);
+        lunarDate.innerText = `${lunarInfo[0]}/${lunarInfo[1]}`;
+
+        dateHeader.appendChild(dateNum);
+        dateHeader.appendChild(lunarDate);
+        cell.appendChild(dateHeader);
 
         attachCellContextMenu(cell, dateStr);
         grid.appendChild(cell);
     }
 
+    // 3. Vòng lặp: Render các ngày của tháng sau
     for (let i = 1; i <= endOffset; i++) {
         const nextMonth = month === 11 ? 0 : month + 1;
         const nextYear = month === 11 ? year + 1 : year;
@@ -359,10 +383,21 @@ async function renderCalendar() {
         cell.className = 'day-cell other-month';
         cell.id = `date-${dateStr}`;
 
+        const dateHeader = document.createElement('div');
+        dateHeader.className = 'date-header';
+
         const dateNum = document.createElement('div');
         dateNum.className = 'date-num';
         dateNum.innerText = i;
-        cell.appendChild(dateNum);
+        
+        const lunarDate = document.createElement('div');
+        lunarDate.className = 'lunar-date';
+        const lunarInfo = getLunarDate(i, nextMonth + 1, nextYear);
+        lunarDate.innerText = `${lunarInfo[0]}/${lunarInfo[1]}`;
+
+        dateHeader.appendChild(dateNum);
+        dateHeader.appendChild(lunarDate);
+        cell.appendChild(dateHeader);
 
         attachCellContextMenu(cell, dateStr);
         grid.appendChild(cell);

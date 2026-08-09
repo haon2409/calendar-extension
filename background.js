@@ -1,9 +1,27 @@
-// Cập nhật icon khi cài đặt và mỗi giờ để đảm bảo sang ngày mới luôn chính xác
-chrome.runtime.onInstalled.addListener(() => updateIcon());
-chrome.alarms.create('updateIcon', { periodInMinutes: 60 });
+// Cập nhật icon khi cài đặt hoặc khi trình duyệt khởi động
+chrome.runtime.onInstalled.addListener(() => setupDailyAlarm());
+chrome.runtime.onStartup.addListener(() => updateIcon());
+
+// Lắng nghe sự kiện alarm
 chrome.alarms.onAlarm.addListener((alarm) => { 
-    if (alarm.name === 'updateIcon') updateIcon(); 
+    if (alarm.name === 'updateIcon') {
+        updateIcon(); 
+        // Sau lần nhảy đúng giao thừa đầu tiên, thiết lập chu kỳ lặp lại mỗi 24 giờ (1440 phút)
+        chrome.alarms.create('updateIcon', { periodInMinutes: 1440 });
+    }
 });
+
+function setupDailyAlarm() {
+    updateIcon(); // Cập nhật ngay lập tức
+
+    // Tính số phút còn lại từ bây giờ đến 00:00:01 ngày hôm sau
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+    const delayInMinutes = (tomorrow.getTime() - now.getTime()) / (1000 * 60);
+
+    // Đặt lịch hẹn chính xác vào 00:00:01 sáng mai
+    chrome.alarms.create('updateIcon', { delayInMinutes: delayInMinutes });
+}
 
 async function updateIcon() {
     const date = new Date();

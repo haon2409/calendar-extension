@@ -284,3 +284,25 @@ button#login-google:hover {
 #modal-btn-ok:hover {
     background: #159cb9;
 }
+
+.date-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    width: 100%;
+    padding: 2px 4px;
+    box-sizing: border-box;
+}
+
+.date-num {
+    margin: 2px 0;
+}
+
+.lunar-date {
+    position: absolute;
+    right: 4px;
+    font-size: 9px;
+    color: #70757a;
+    opacity: 0.8;
+}
