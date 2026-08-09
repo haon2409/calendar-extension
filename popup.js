@@ -5,6 +5,7 @@ let activeCellDateStr = null;
 let createType = null; // 'task' hoặc 'event'
 let modalMode = 'create'; // 'create' hoặc 'edit'
 let activeItemContext = null; // Lưu trữ đối tượng task/event đang được chọn
+let activeItemNode = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     chrome.identity.getAuthToken({ interactive: false }, function(token) {
@@ -176,60 +177,101 @@ async function submitAddItem() {
         return;
     }
 
+    // --- BẢO LƯU CÁC BIẾN TRƯỚC KHI ĐÓNG MODAL ---
+    const typeToCreate = createType;
+    const mode = modalMode;
+    const targetDate = activeCellDateStr;
+    const itemContext = activeItemContext;
+    const itemNode = activeItemNode;
+
+    closeAddModal(); // Hành động này sẽ set createType = null để reset form
+
     try {
-        if (createType === 'event') {
+        if (typeToCreate === 'event') {
             const body = { summary: title, description: description };
-            if (modalMode === 'create') {
-                body.start = { date: activeCellDateStr };
-                body.end = { date: activeCellDateStr };
+            
+            if (mode === 'create') {
+                body.start = { date: targetDate };
+                body.end = { date: targetDate };
+                
+                const cell = document.getElementById(`date-${targetDate}`);
+                const tempDiv = createTempNode(title, 'event');
+                if (cell) cell.appendChild(tempDiv);
+
                 const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
-                await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
-            } else if (modalMode === 'edit') {
-                const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${activeItemContext.id}`;
-                await apiRequest(url, { method: 'PATCH', body: JSON.stringify(body) });
+                const res = await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
+                
+                if (cell) tempDiv.replaceWith(buildItemElement(res, 'event', targetDate));
+
+            } else if (mode === 'edit') {
+                itemNode.querySelector('.item-title').innerText = title;
+                itemNode.style.opacity = '0.5';
+
+                const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${itemContext.id}`;
+                const res = await apiRequest(url, { method: 'PATCH', body: JSON.stringify(body) });
+                
+                itemNode.replaceWith(buildItemElement(res, 'event', targetDate));
             }
-        } else if (createType === 'task') {
-            if (modalMode === 'create') {
-                const isRepeat = document.getElementById('modal-checkbox-repeat').checked;
+        } else if (typeToCreate === 'task') {
+            if (mode === 'create') {
+                const checkboxRepeat = document.getElementById('modal-checkbox-repeat');
+                const isRepeat = checkboxRepeat ? checkboxRepeat.checked : false;
                 
                 if (isRepeat) {
                     const interval = document.getElementById('repeat-interval').value;
                     const unit = document.getElementById('repeat-unit').value;
                     let times = parseInt(document.getElementById('repeat-times').value);
                     if (isNaN(times) || times < 1) times = 1;
-                    if (times > 100) times = 100; // Giới hạn max 100
+                    if (times > 100) times = 100;
                     
-                    let currentDateStr = activeCellDateStr;
+                    let currentDateStr = targetDate;
                     
-                    // Dùng vòng lặp for...of với await để tránh bị Google API chặn do spam request (Rate Limit)
                     for (let i = 0; i < times; i++) {
-                        const body = { 
-                            title: title, 
-                            notes: description,
-                            due: `${currentDateStr}T00:00:00.000Z` 
-                        };
-                        const url = 'https://www.googleapis.com/tasks/v1/lists/@default/tasks';
-                        await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
+                        const body = { title: title, notes: description, due: `${currentDateStr}T00:00:00.000Z` };
                         
-                        // Tính toán ngày cho lần lặp kế tiếp
+                        const cell = document.getElementById(`date-${currentDateStr}`);
+                        let tempDiv = null;
+                        if (cell) {
+                            tempDiv = createTempNode(title, 'task');
+                            cell.appendChild(tempDiv);
+                        }
+
+                        const url = 'https://www.googleapis.com/tasks/v1/lists/@default/tasks';
+                        const res = await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
+                        
+                        if (cell && tempDiv) {
+                            tempDiv.replaceWith(buildItemElement(res, 'task', currentDateStr));
+                        }
+                        
                         currentDateStr = calculateNextDate(currentDateStr, interval, unit);
                     }
                 } else {
-                    const body = { title: title, notes: description, due: `${activeCellDateStr}T00:00:00.000Z` };
+                    const body = { title: title, notes: description, due: `${targetDate}T00:00:00.000Z` };
+                    
+                    const cell = document.getElementById(`date-${targetDate}`);
+                    const tempDiv = createTempNode(title, 'task');
+                    if (cell) cell.appendChild(tempDiv);
+
                     const url = 'https://www.googleapis.com/tasks/v1/lists/@default/tasks';
-                    await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
+                    const res = await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
+                    
+                    if (cell) tempDiv.replaceWith(buildItemElement(res, 'task', targetDate));
                 }
-            } else if (modalMode === 'edit') {
+            } else if (mode === 'edit') {
+                itemNode.querySelector('.item-title').innerText = title;
+                itemNode.style.opacity = '0.5';
+
                 const body = { title: title, notes: description };
-                const url = `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${activeItemContext.id}`;
-                await apiRequest(url, { method: 'PATCH', body: JSON.stringify(body) });
+                const url = `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${itemContext.id}`;
+                const res = await apiRequest(url, { method: 'PATCH', body: JSON.stringify(body) });
+                
+                itemNode.replaceWith(buildItemElement(res, 'task', targetDate));
             }
         }
-        closeAddModal();
-        renderCalendar();
     } catch (e) {
         console.error('Lỗi khi lưu:', e);
-        alert('Lỗi khi lưu: ' + e.message);
+        alert('Đã xảy ra lỗi, hệ thống sẽ tự đồng bộ lại!');
+        renderCalendar(); // Rollback toàn cục
     }
 }
 
@@ -344,10 +386,13 @@ async function fetchAllPages(baseUrl) {
     return items;
 }
 
-async function deleteItem(type, id, title) {
+async function deleteItem(type, id, title, elementNode) {
     const label = type === 'event' ? 'sự kiện' : 'công việc';
     const isConfirmed = confirm(`Bạn có chắc chắn muốn xóa ${label}: "${title}"?`);
     if (!isConfirmed) return;
+
+    const originalDisplay = elementNode.style.display;
+    elementNode.style.display = 'none';
 
     try {
         if (type === 'event') {
@@ -357,16 +402,27 @@ async function deleteItem(type, id, title) {
             const url = `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${id}`;
             await apiRequest(url, { method: 'DELETE' });
         }
-        renderCalendar();
+        elementNode.remove();
     } catch (e) {
+        elementNode.style.display = originalDisplay; 
         console.error('Lỗi khi xóa:', e);
         alert('Lỗi khi xóa: ' + e.message);
     }
 }
 
 async function toggleTaskStatus(taskId, currentStatus) {
+    const node = activeItemNode;
+    if (!node) return;
+
     const isCompleted = currentStatus === 'completed';
     const newStatus = isCompleted ? 'needsAction' : 'completed';
+    
+    const originalTextDeco = node.style.textDecoration;
+    const originalOpacity = node.style.opacity;
+
+    node.style.textDecoration = newStatus === 'completed' ? 'line-through' : 'none';
+    node.style.opacity = newStatus === 'completed' ? '0.7' : '1';
+
     const url = `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${taskId}`;
 
     try {
@@ -377,10 +433,12 @@ async function toggleTaskStatus(taskId, currentStatus) {
                 completed: newStatus === 'completed' ? new Date().toISOString() : null
             })
         });
-        renderCalendar();
+        activeTaskContext.status = newStatus;
     } catch (e) {
+        node.style.textDecoration = originalTextDeco;
+        node.style.opacity = originalOpacity;
         console.error('Lỗi đổi trạng thái task:', e);
-        alert('Không thể cập nhật trạng thái công việc: ' + e.message);
+        alert('Không thể cập nhật trạng thái: ' + e.message);
     }
 }
 
@@ -561,122 +619,92 @@ async function fetchMonthlyData(minDate, maxDate) {
         eventsItems.forEach(ev => {
             const dateVal = ev.start?.dateTime || ev.start?.date;
             if (!dateVal) return;
-            
             const dateStr = dateVal.split('T')[0];
             const targetCell = document.getElementById(`date-${dateStr}`);
-            
-            if (targetCell) {
-                const div = document.createElement('div');
-                div.className = 'event-item';
-                
-                const fullTitle = ev.summary || '(Không có tiêu đề)';
-                const description = ev.description ? `\n\${ev.description}` : ''; 
-
-                const titleSpan = document.createElement('span');
-                titleSpan.className = 'item-title';
-                titleSpan.innerText = fullTitle;
-                titleSpan.title = fullTitle + description; 
-
-                const delBtn = document.createElement('span');
-                delBtn.className = 'delete-btn';
-                delBtn.innerText = '×';
-                delBtn.title = 'Xóa sự kiện';
-                delBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteItem('event', ev.id, fullTitle);
-                });
-
-                div.appendChild(titleSpan);
-                div.appendChild(delBtn);
-
-                // Context Menu cho Event (chỉ có Edit)
-                div.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                
-                    activeItemContext = ev;
-                    createType = 'event';
-                
-                    const menu = document.getElementById('custom-context-menu');
-                    const toggleItem = document.getElementById('ctx-toggle-status');
-                
-                    toggleItem.style.display = 'none';
-                    document.getElementById('ctx-add-task').style.display = 'none';
-                    document.getElementById('ctx-add-event').style.display = 'none';
-                    document.getElementById('ctx-edit-item').style.display = 'block'; 
-                
-                    menu.style.display = 'block';
-                    const rect = document.body.getBoundingClientRect();
-                    menu.style.left = `${e.clientX - rect.left}px`;
-                    menu.style.top = `${e.clientY - rect.top}px`;
-                });
-
-                targetCell.appendChild(div);
-            }
+            if (targetCell) targetCell.appendChild(buildItemElement(ev, 'event', dateStr));
         });
 
         tasksItems.forEach(task => {
             if (!task.due) return;
-            
             const dateStr = task.due.split('T')[0];
             const targetCell = document.getElementById(`date-${dateStr}`);
-            
-            if (targetCell) {
-                const div = document.createElement('div');
-                div.className = 'task-item';
-                if (task.status === 'completed') {
-                    div.style.textDecoration = 'line-through';
-                    div.style.opacity = '0.7';
-                }
-                
-                const fullTitle = task.title || '(No tittle)';
-                const notes = task.notes ? `\n\n${task.notes}` : ''; 
-        
-                const titleSpan = document.createElement('span');
-                titleSpan.className = 'item-title';
-                titleSpan.innerText = fullTitle;
-                titleSpan.title = fullTitle + notes; 
-        
-                const delBtn = document.createElement('span');
-                delBtn.className = 'delete-btn';
-                delBtn.innerText = '×';
-                delBtn.title = '    Delete';
-                delBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteItem('task', task.id, fullTitle);
-                });
-        
-                div.appendChild(titleSpan);
-                div.appendChild(delBtn);
-        
-                // Context Menu cho Task (Complete/Incomplete + Edit)
-                div.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                
-                    activeItemContext = task;
-                    activeTaskContext = task; 
-                    createType = 'task';
-                
-                    const menu = document.getElementById('custom-context-menu');
-                    const toggleItem = document.getElementById('ctx-toggle-status');
-                
-                    toggleItem.innerText = task.status === 'completed' ? 'Incomplete' : 'Complete';
-                    toggleItem.style.display = 'block';
-                    document.getElementById('ctx-add-task').style.display = 'none';
-                    document.getElementById('ctx-add-event').style.display = 'none';
-                    document.getElementById('ctx-edit-item').style.display = 'block'; 
-                
-                    menu.style.display = 'block';
-                    const rect = document.body.getBoundingClientRect();
-                    menu.style.left = `${e.clientX - rect.left}px`;
-                    menu.style.top = `${e.clientY - rect.top}px`;
-                });
-        
-                targetCell.appendChild(div);
-            }
+            if (targetCell) targetCell.appendChild(buildItemElement(task, 'task', dateStr));
         });
     } catch (e) {
         console.error('Lỗi tải dữ liệu lịch:', e);
     }
+}
+
+function createTempNode(title, type) {
+    const div = document.createElement('div');
+    div.className = type === 'event' ? 'event-item' : 'task-item';
+    div.style.opacity = '0.5'; // Làm mờ để biểu thị trạng thái đang xử lý (Optimistic)
+    div.innerHTML = `<span class="item-title">${title}</span><span class="delete-btn">×</span>`;
+    return div;
+}
+
+function buildItemElement(item, type, dateStr) {
+    const div = document.createElement('div');
+    div.className = type === 'event' ? 'event-item' : 'task-item';
+    
+    let fullTitle = type === 'event' ? (item.summary || '(Không có tiêu đề)') : (item.title || '(No tittle)');
+    let tooltipText = fullTitle;
+    
+    if (type === 'event' && item.description) tooltipText += `\n${item.description}`;
+    if (type === 'task' && item.notes) tooltipText += `\n\n${item.notes}`;
+
+    if (type === 'task' && item.status === 'completed') {
+        div.style.textDecoration = 'line-through';
+        div.style.opacity = '0.7';
+    }
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'item-title';
+    titleSpan.innerText = fullTitle;
+    titleSpan.title = tooltipText; 
+
+    const delBtn = document.createElement('span');
+    delBtn.className = 'delete-btn';
+    delBtn.innerText = '×';
+    delBtn.title = type === 'event' ? 'Xóa sự kiện' : 'Xóa công việc';
+    
+    delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteItem(type, item.id, fullTitle, div);
+    });
+
+    div.appendChild(titleSpan);
+    div.appendChild(delBtn);
+
+    div.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    
+        activeItemContext = item;
+        activeItemNode = div; 
+        createType = type;
+        activeCellDateStr = dateStr; // Bổ sung dòng này để fix lỗi thiếu ngày khi Edit
+    
+        const menu = document.getElementById('custom-context-menu');
+        const toggleItem = document.getElementById('ctx-toggle-status');
+    
+        if (type === 'event') {
+            toggleItem.style.display = 'none';
+        } else {
+            activeTaskContext = item;
+            toggleItem.innerText = item.status === 'completed' ? 'Incomplete' : 'Complete';
+            toggleItem.style.display = 'block';
+        }
+
+        document.getElementById('ctx-add-task').style.display = 'none';
+        document.getElementById('ctx-add-event').style.display = 'none';
+        document.getElementById('ctx-edit-item').style.display = 'block'; 
+    
+        menu.style.display = 'block';
+        const rect = document.body.getBoundingClientRect();
+        menu.style.left = `${e.clientX - rect.left}px`;
+        menu.style.top = `${e.clientY - rect.top}px`;
+    });
+
+    return div;
 }
