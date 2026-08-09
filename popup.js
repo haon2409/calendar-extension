@@ -493,7 +493,7 @@ async function fetchMonthlyData(minDate, maxDate) {
                 div.className = 'event-item';
                 
                 const fullTitle = ev.summary || '(Không có tiêu đề)';
-                const description = ev.description ? `\n\nDescription: ${ev.description}` : ''; 
+                const description = ev.description ? `\n\${ev.description}` : ''; 
 
                 const titleSpan = document.createElement('span');
                 titleSpan.className = 'item-title';
@@ -553,7 +553,7 @@ async function fetchMonthlyData(minDate, maxDate) {
                 }
                 
                 const fullTitle = task.title || '(No tittle)';
-                const notes = task.notes ? `\n\nNote: ${task.notes}` : ''; 
+                const notes = task.notes ? `\n\n${task.notes}` : ''; 
         
                 const titleSpan = document.createElement('span');
                 titleSpan.className = 'item-title';
