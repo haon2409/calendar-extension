@@ -324,7 +324,10 @@ function attachCellContextMenu(cell, dateStr) {
         activeCellDateStr = dateStr;
 
         const menu = document.getElementById('custom-context-menu');
+        
+        // --- BỔ SUNG: Ẩn Edit và Toggle Status, chỉ hiển thị chức năng thêm mới cho Cell ---
         document.getElementById('ctx-toggle-status').style.display = 'none';
+        document.getElementById('ctx-edit-item').style.display = 'none'; // Thêm dòng này để ẩn Edit
         document.getElementById('ctx-add-task').style.display = 'block';
         document.getElementById('ctx-add-event').style.display = 'block';
 
@@ -490,13 +493,11 @@ async function fetchMonthlyData(minDate, maxDate) {
                 div.className = 'event-item';
                 
                 const fullTitle = ev.summary || '(Không có tiêu đề)';
-                // Lấy description của event nếu có
                 const description = ev.description ? `\n\nDescription: ${ev.description}` : ''; 
 
                 const titleSpan = document.createElement('span');
                 titleSpan.className = 'item-title';
                 titleSpan.innerText = fullTitle;
-                // Hiển thị Title + Description khi hover
                 titleSpan.title = fullTitle + description; 
 
                 const delBtn = document.createElement('span');
@@ -510,6 +511,29 @@ async function fetchMonthlyData(minDate, maxDate) {
 
                 div.appendChild(titleSpan);
                 div.appendChild(delBtn);
+
+                // Context Menu cho Event (chỉ có Edit)
+                div.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                
+                    activeItemContext = ev;
+                    createType = 'event';
+                
+                    const menu = document.getElementById('custom-context-menu');
+                    const toggleItem = document.getElementById('ctx-toggle-status');
+                
+                    toggleItem.style.display = 'none';
+                    document.getElementById('ctx-add-task').style.display = 'none';
+                    document.getElementById('ctx-add-event').style.display = 'none';
+                    document.getElementById('ctx-edit-item').style.display = 'block'; 
+                
+                    menu.style.display = 'block';
+                    const rect = document.body.getBoundingClientRect();
+                    menu.style.left = `${e.clientX - rect.left}px`;
+                    menu.style.top = `${e.clientY - rect.top}px`;
+                });
+
                 targetCell.appendChild(div);
             }
         });
@@ -548,12 +572,13 @@ async function fetchMonthlyData(minDate, maxDate) {
                 div.appendChild(titleSpan);
                 div.appendChild(delBtn);
         
+                // Context Menu cho Task (Complete/Incomplete + Edit)
                 div.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                 
                     activeItemContext = task;
-                    activeTaskContext = task; // Giữ lại cho Toggle status
+                    activeTaskContext = task; 
                     createType = 'task';
                 
                     const menu = document.getElementById('custom-context-menu');
@@ -563,7 +588,7 @@ async function fetchMonthlyData(minDate, maxDate) {
                     toggleItem.style.display = 'block';
                     document.getElementById('ctx-add-task').style.display = 'none';
                     document.getElementById('ctx-add-event').style.display = 'none';
-                    document.getElementById('ctx-edit-item').style.display = 'block'; // Hiện nút Edit
+                    document.getElementById('ctx-edit-item').style.display = 'block'; 
                 
                     menu.style.display = 'block';
                     const rect = document.body.getBoundingClientRect();
