@@ -20,6 +20,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!accessToken) {
         renderCalendar();
     }
+
+    // Khởi tạo các tùy chọn từ 1 đến 30 cho repeat-interval
+    const intervalSelect = document.getElementById('repeat-interval');
+    if (intervalSelect) {
+        for (let i = 1; i <= 30; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.innerText = i;
+            intervalSelect.appendChild(option);
+        }
+    }
+
+    // Xử lý ẩn hiện vùng tùy chọn repeat
+    document.getElementById('modal-checkbox-repeat').addEventListener('change', (e) => {
+        document.getElementById('repeat-options').style.display = e.target.checked ? 'flex' : 'none';
+    });
 });
 
 // Ẩn context menu khi click ra ngoài
@@ -75,13 +91,12 @@ function openEditModal() {
     modalInput.focus();
 }
 
-// Quản lý Modal nhập title
 function openAddModal(type) {
     if (!accessToken) {
         alert('Vui lòng đồng bộ với Google (Đăng nhập) để sử dụng tính năng này!');
         return;
     }
-    modalMode = 'create'; // Khai báo trạng thái
+    modalMode = 'create'; 
     createType = type;
     const modal = document.getElementById('add-modal');
     const modalTitle = document.getElementById('modal-title');
@@ -93,9 +108,45 @@ function openAddModal(type) {
         : `Thêm Công việc (${activeCellDateStr})`;
     
     modalInput.value = '';
-    modalDesc.value = ''; // Reset trường mô tả
+    modalDesc.value = ''; 
+    
+    // Cập nhật trạng thái hiển thị của tính năng Repeat
+    const repeatContainer = document.getElementById('repeat-container');
+    const checkboxRepeat = document.getElementById('modal-checkbox-repeat');
+    const repeatOptions = document.getElementById('repeat-options');
+    
+    if (type === 'task') {
+        repeatContainer.style.display = 'block';
+        checkboxRepeat.checked = false;
+        repeatOptions.style.display = 'none';
+        document.getElementById('repeat-times').value = 3;
+    } else {
+        repeatContainer.style.display = 'none';
+    }
+
     modal.style.display = 'flex';
     modalInput.focus();
+}
+
+function calculateNextDate(dateString, interval, unit) {
+    let d = new Date(dateString);
+    interval = parseInt(interval);
+    
+    switch(unit) {
+        case 'days':
+            d.setDate(d.getDate() + interval);
+            break;
+        case 'weeks':
+            d.setDate(d.getDate() + (interval * 7));
+            break;
+        case 'months':
+            d.setMonth(d.getMonth() + interval);
+            break;
+        case 'years':
+            d.setFullYear(d.getFullYear() + interval);
+            break;
+    }
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function closeAddModal() {
@@ -138,12 +189,38 @@ async function submitAddItem() {
                 await apiRequest(url, { method: 'PATCH', body: JSON.stringify(body) });
             }
         } else if (createType === 'task') {
-            const body = { title: title, notes: description };
             if (modalMode === 'create') {
-                body.due = `${activeCellDateStr}T00:00:00.000Z`;
-                const url = 'https://www.googleapis.com/tasks/v1/lists/@default/tasks';
-                await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
+                const isRepeat = document.getElementById('modal-checkbox-repeat').checked;
+                
+                if (isRepeat) {
+                    const interval = document.getElementById('repeat-interval').value;
+                    const unit = document.getElementById('repeat-unit').value;
+                    let times = parseInt(document.getElementById('repeat-times').value);
+                    if (isNaN(times) || times < 1) times = 1;
+                    if (times > 100) times = 100; // Giới hạn max 100
+                    
+                    let currentDateStr = activeCellDateStr;
+                    
+                    // Dùng vòng lặp for...of với await để tránh bị Google API chặn do spam request (Rate Limit)
+                    for (let i = 0; i < times; i++) {
+                        const body = { 
+                            title: title, 
+                            notes: description,
+                            due: `${currentDateStr}T00:00:00.000Z` 
+                        };
+                        const url = 'https://www.googleapis.com/tasks/v1/lists/@default/tasks';
+                        await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
+                        
+                        // Tính toán ngày cho lần lặp kế tiếp
+                        currentDateStr = calculateNextDate(currentDateStr, interval, unit);
+                    }
+                } else {
+                    const body = { title: title, notes: description, due: `${activeCellDateStr}T00:00:00.000Z` };
+                    const url = 'https://www.googleapis.com/tasks/v1/lists/@default/tasks';
+                    await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
+                }
             } else if (modalMode === 'edit') {
+                const body = { title: title, notes: description };
                 const url = `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${activeItemContext.id}`;
                 await apiRequest(url, { method: 'PATCH', body: JSON.stringify(body) });
             }

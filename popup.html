@@ -52,7 +52,29 @@
         <div class="modal-content">
             <h3 id="modal-title">Thêm mới</h3>
             <input type="text" id="modal-input-title" placeholder="Nhập tiêu đề..." autocomplete="off" />
-            <textarea id="modal-input-desc" placeholder="Nhập mô tả (không bắt buộc)..." rows="3"></textarea>
+            <textarea id="modal-input-desc" placeholder="Nhập mô tả (không bắt buộc)..." rows="3"></textarea>                        
+            <div id="repeat-container" style="display: none; margin-bottom: 12px; text-align: left; font-size: 12px;">
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    <input type="checkbox" id="modal-checkbox-repeat"> Lặp lại (Repeat)
+                </label>
+                
+                <div id="repeat-options" style="display: none; margin-top: 8px; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; gap: 8px;">
+                        <select id="repeat-interval" style="padding: 4px; background: #202124; color: #fff; border: 1px solid #4a4d53; border-radius: 4px; outline: none;"></select>
+                        <select id="repeat-unit" style="padding: 4px; background: #202124; color: #fff; border: 1px solid #4a4d53; border-radius: 4px; outline: none;">
+                            <option value="days">Days</option>
+                            <option value="weeks">Weeks</option>
+                            <option value="months">Months</option>
+                            <option value="years">Years</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span>End after</span>
+                        <input type="number" id="repeat-times" min="1" max="100" value="3" style="width: 60px; margin-bottom: 0; padding: 4px;" />
+                        <span>times</span>
+                    </div>
+                </div>
+            </div>
             <div class="modal-actions">
                 <button id="modal-btn-cancel">Cancel</button>
                 <button id="modal-btn-ok">OK</button>

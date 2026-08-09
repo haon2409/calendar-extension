@@ -338,3 +338,75 @@ button#login-google:hover {
     color: #70757a;
     opacity: 0.8;
 }
+
+/* Container chính */
+.repeat-container {
+    display: none;
+    margin-bottom: 12px;
+    text-align: left;
+    font-size: 12px;
+}
+
+/* Label chứa checkbox */
+.repeat-label {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff;
+}
+
+/* Sửa lỗi checkbox bị kéo giãn 100% chiều ngang */
+.modal-content input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+/* Vùng hiển thị tùy chọn lặp lại (đóng khung làm nổi bật) */
+.repeat-options {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    background-color: #222428;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #3b3e43;
+    margin-top: 8px;
+}
+
+/* Các hàng ngang trong tùy chọn */
+.repeat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff;
+}
+
+/* Đồng bộ kích thước và viền cho Select và Input Number */
+.repeat-row select,
+.modal-content .repeat-row input[type="number"] {
+    background: #202124;
+    color: #ffffff;
+    border: 1px solid #4a4d53;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    outline: none;
+    margin: 0;
+    height: 28px;
+    box-sizing: border-box;
+}
+
+/* Hiệu ứng focus */
+.repeat-row select:focus,
+.modal-content .repeat-row input[type="number"]:focus {
+    border-color: #1bb5d6;
+}
+
+/* Giới hạn chiều rộng ô nhập số */
+.modal-content .repeat-row input[type="number"] {
+    width: 65px;
+    text-align: center;
+}
