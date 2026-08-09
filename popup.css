@@ -273,6 +273,28 @@ button#login-google:hover {
     border-color: #1bb5d6;
 }
 
+.modal-content input, .modal-content textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #4a4d53;
+    background: #202124;
+    color: #ffffff;
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+    font-size: 12px;
+    outline: none;
+    font-family: inherit;
+}
+
+.modal-content input:focus, .modal-content textarea:focus {
+    border-color: #1bb5d6;
+}
+
+.modal-content textarea {
+    resize: none;
+}
+
 .modal-actions {
     display: flex;
     justify-content: flex-end;

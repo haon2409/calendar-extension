@@ -61,12 +61,14 @@ function openAddModal(type) {
     const modal = document.getElementById('add-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalInput = document.getElementById('modal-input-title');
+    const modalDesc = document.getElementById('modal-input-desc');
 
     modalTitle.innerText = type === 'event' 
         ? `Thêm Sự kiện (${activeCellDateStr})` 
         : `Thêm Công việc (${activeCellDateStr})`;
     
     modalInput.value = '';
+    modalDesc.value = ''; // Reset trường mô tả
     modal.style.display = 'flex';
     modalInput.focus();
 }
@@ -89,7 +91,10 @@ document.getElementById('modal-input-title').addEventListener('keydown', (e) => 
 
 async function submitAddItem() {
     const titleInput = document.getElementById('modal-input-title');
+    const descInput = document.getElementById('modal-input-desc');
     const title = titleInput.value.trim();
+    const description = descInput.value.trim();
+
     if (!title) {
         alert('Vui lòng nhập tiêu đề!');
         return;
@@ -98,22 +103,28 @@ async function submitAddItem() {
     try {
         if (createType === 'event') {
             const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+            const body = {
+                summary: title,
+                start: { date: activeCellDateStr },
+                end: { date: activeCellDateStr }
+            };
+            if (description) body.description = description;
+
             await apiRequest(url, {
                 method: 'POST',
-                body: JSON.stringify({
-                    summary: title,
-                    start: { date: activeCellDateStr },
-                    end: { date: activeCellDateStr }
-                })
+                body: JSON.stringify(body)
             });
         } else if (createType === 'task') {
             const url = 'https://www.googleapis.com/tasks/v1/lists/@default/tasks';
+            const body = {
+                title: title,
+                due: `${activeCellDateStr}T00:00:00.000Z`
+            };
+            if (description) body.notes = description;
+
             await apiRequest(url, {
                 method: 'POST',
-                body: JSON.stringify({
-                    title: title,
-                    due: `${activeCellDateStr}T00:00:00.000Z`
-                })
+                body: JSON.stringify(body)
             });
         }
         closeAddModal();
