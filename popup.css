@@ -84,7 +84,8 @@ button#logout-google:hover {
 }
 
 .cyan { color: #1bb5d6; }
-.orange { color: #fbbc04; }
+.orange { color: #fbbc04; }       /* Giữ màu cam cho Thứ 7[cite: 3] */
+.red-sunday { color: #ff4d4d; }    /* Màu đỏ cho Chủ Nhật */
 
 .day-cell {
     min-height: 68px;
@@ -142,15 +143,25 @@ button#logout-google:hover {
     align-items: center;
 }
 
-.event-item { 
+/* .event-item { 
     background: #1bb5d6; 
     color: white; 
+} */
+
+.event-item {
+    background-color: #1bb5d6; /* Màu xanh cyan cho Event */        
+    color: #000;
 }
 
-.task-item { 
+/* .task-item { 
     background: #4a4d53; 
     color: #fbbc04; 
     border-left: 2px solid #fbbc04; 
+} */
+
+.task-item {
+    background-color: #3b5998; /* Hoặc mã màu xanh dương/tím than tương ứng Task trong ảnh */    
+    color: #000;
 }
 
 .item-title {

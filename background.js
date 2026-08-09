@@ -33,20 +33,45 @@ async function updateIcon() {
     const canvas = new OffscreenCanvas(128, 128);
     const ctx = canvas.getContext('2d');
 
-    // Nền tối
-    ctx.fillStyle = '#202124';
-    ctx.fillRect(0, 0, 128, 128);
+    // Xóa toàn bộ
+    ctx.clearRect(0, 0, 128, 128);
 
-    // Render "Thứ"
-    ctx.fillStyle = (date.getDay() === 0 || date.getDay() === 6) ? '#fbbc04' : '#1bb5d6'; 
-    ctx.font = 'bold 45px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(day, 64, 50);
+    // Xác định màu nền cho phần "Thứ" dựa theo ngày (Chủ Nhật: Đỏ, Thứ 7: Cam, Ngày thường: Xanh cyan)
+    let dayBgColor = '#1bb5d6';
+    if (date.getDay() === 0) {
+        dayBgColor = '#ff4d4d'; 
+    } else if (date.getDay() === 6) {
+        dayBgColor = '#fbbc04'; 
+    }
 
-    // Render "Ngày"
+    // 1. Nền trên cho "Thứ" (chiều cao từ 0 đến 64)
+    ctx.fillStyle = dayBgColor;
+    ctx.fillRect(0, 0, 128, 64);
+
+    // 2. Nền dưới cho "Ngày" (chiều cao từ 64 đến 128)
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 60px sans-serif';
-    ctx.fillText(dateNum, 64, 115);
+    ctx.fillRect(0, 64, 128, 64);
+
+    // Thiết lập chung cho text
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Co giãn chiều ngang (scaleX = 1.35) để chữ bẹt và lấp đầy không gian
+    ctx.save();
+    ctx.scale(1.35, 1.0); 
+    const scaledX = 64 / 1.35;
+
+    // Render "Thứ" với chữ màu trắng trên nền màu tương ứng
+    ctx.fillStyle = '#ffffff'; 
+    ctx.font = 'bold 50px sans-serif';
+    ctx.fillText(day, scaledX, 32);
+
+    // Render "Ngày" chữ đen trên nền trắng
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 72px sans-serif';
+    ctx.fillText(dateNum, scaledX, 97);
+
+    ctx.restore();
 
     const imageData = ctx.getImageData(0, 0, 128, 128);
     chrome.action.setIcon({ imageData: imageData });
