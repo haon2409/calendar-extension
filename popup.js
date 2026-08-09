@@ -53,6 +53,10 @@ document.getElementById('ctx-add-event').addEventListener('click', () => {
 
 // Quản lý Modal nhập title
 function openAddModal(type) {
+    if (!accessToken) {
+        alert('Vui lòng đồng bộ với Google (Đăng nhập) để sử dụng tính năng này!');
+        return;
+    }
     createType = type;
     const modal = document.getElementById('add-modal');
     const modalTitle = document.getElementById('modal-title');
@@ -128,47 +132,56 @@ document.getElementById('btn-today').addEventListener('click', () => {
 });
 
 function showLoginState(isLoggedIn) {
-    const loginBtn = document.getElementById('login-google');
     const logoutBtn = document.getElementById('logout-google');
+    const iconSvg = document.getElementById('icon-login-state');
     
+    logoutBtn.style.display = 'flex';
+
     if (isLoggedIn) {
-        if (loginBtn) loginBtn.parentElement.style.display = 'none';
-        logoutBtn.style.display = 'flex';
+        logoutBtn.title = "Đăng xuất / Đổi tài khoản";
+        iconSvg.innerHTML = `
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+        `;
     } else {
-        if (loginBtn) loginBtn.parentElement.style.display = 'block';
-        logoutBtn.style.display = 'none';
+        logoutBtn.title = "Đồng bộ với Google";
+        iconSvg.innerHTML = `
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+            <polyline points="10 17 15 12 10 7"></polyline>
+            <line x1="15" y1="12" x2="3" y2="12"></line>
+        `;
     }
 }
 
-document.getElementById('login-google').addEventListener('click', () => {
-    chrome.identity.getAuthToken({ interactive: true }, function(token) {
-        if (chrome.runtime.lastError || !token) {
-            console.error(chrome.runtime.lastError);
-            alert('Lỗi khi đăng nhập: ' + (chrome.runtime.lastError ? chrome.runtime.lastError.message : 'Không lấy được token'));
-            return;
-        }
-        
-        accessToken = token;
-        showLoginState(true);
-        renderCalendar();
-    });
-});
-
 document.getElementById('logout-google').addEventListener('click', async () => {
-    if (!accessToken) return;
-    const tokenToRevoke = accessToken;
-    
-    try {
-        await fetch(`https://accounts.google.com/o/oauth2/revoke?token=${tokenToRevoke}`);
-    } catch (e) {
-        console.warn('Lỗi khi thu hồi token:', e);
-    }
+    if (!accessToken) {
+        // Trạng thái chưa login -> Thực hiện hành động Đăng nhập (thay thế nút "Đồng bộ với Google")[cite: 1]
+        chrome.identity.getAuthToken({ interactive: true }, function(token) {
+            if (chrome.runtime.lastError || !token) {
+                console.error(chrome.runtime.lastError);
+                alert('Lỗi khi đăng nhập: ' + (chrome.runtime.lastError ? chrome.runtime.lastError.message : 'Không lấy được token'));
+                return;
+            }
+            accessToken = token;
+            showLoginState(true);
+            renderCalendar();
+        });
+    } else {
+        // Trạng thái đã login -> Thực hiện hành động Đăng xuất
+        const tokenToRevoke = accessToken;
+        try {
+            await fetch(`https://accounts.google.com/o/oauth2/revoke?token=${tokenToRevoke}`);
+        } catch (e) {
+            console.warn('Lỗi khi thu hồi token:', e);
+        }
 
-    chrome.identity.removeCachedAuthToken({ token: tokenToRevoke }, () => {
-        accessToken = "";
-        showLoginState(false);
-        renderCalendar();
-    });
+        chrome.identity.removeCachedAuthToken({ token: tokenToRevoke }, () => {
+            accessToken = "";
+            showLoginState(false);
+            renderCalendar();
+        });
+    }
 });
 
 function changeMonth(offset) {
@@ -264,6 +277,12 @@ async function toggleTaskStatus(taskId, currentStatus) {
 
 function attachCellContextMenu(cell, dateStr) {
     cell.addEventListener('contextmenu', (e) => {
+        // Nếu chưa login thì không cho hiện menu
+        if (!accessToken) {
+            e.preventDefault();
+            return;
+        }
+
         if (e.target.closest('.task-item') || e.target.closest('.event-item')) {
             return;
         }
@@ -304,6 +323,12 @@ async function renderCalendar() {
     const today = new Date();
     const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
 
+    // Vô hiệu hóa nút btn-today nếu đang ở tháng hiện tại
+    const btnToday = document.getElementById('btn-today');
+    if (btnToday) {
+        btnToday.disabled = isCurrentMonth;
+    }
+    
     let minFetchDate = new Date(year, month, 1 - startOffset);
     let totalCells = startOffset + daysInMonth;
     let remainder = totalCells % 7;
@@ -468,7 +493,7 @@ async function fetchMonthlyData(minDate, maxDate) {
                     div.style.opacity = '0.7';
                 }
                 
-                const fullTitle = task.title || '(Không có tiêu đề)';
+                const fullTitle = task.title || '(No tittle)';
 
                 const titleSpan = document.createElement('span');
                 titleSpan.className = 'item-title';
@@ -478,7 +503,7 @@ async function fetchMonthlyData(minDate, maxDate) {
                 const delBtn = document.createElement('span');
                 delBtn.className = 'delete-btn';
                 delBtn.innerText = '×';
-                delBtn.title = 'Xóa công việc';
+                delBtn.title = '    Delete';
                 delBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     deleteItem('task', task.id, fullTitle);
@@ -497,8 +522,8 @@ async function fetchMonthlyData(minDate, maxDate) {
                     const toggleItem = document.getElementById('ctx-toggle-status');
 
                     toggleItem.innerText = task.status === 'completed' 
-                        ? 'Đánh dấu chưa hoàn thành' 
-                        : 'Đánh dấu hoàn thành';
+                        ? 'Incomplete' 
+                        : 'Complete';
 
                     toggleItem.style.display = 'block';
                     document.getElementById('ctx-add-task').style.display = 'none';

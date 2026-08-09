@@ -49,6 +49,16 @@ body {
     background-color: #5c6066; 
 }
 
+.nav-buttons button:disabled, button#logout-google:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: #3a3d42;
+}
+
+.nav-buttons button:disabled:hover, button#logout-google:disabled:hover {
+    background-color: #3a3d42;
+}
+
 button#logout-google {
     background-color: #4a4d53;
 }
