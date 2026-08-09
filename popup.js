@@ -328,7 +328,7 @@ async function renderCalendar() {
     if (btnToday) {
         btnToday.disabled = isCurrentMonth;
     }
-    
+
     let minFetchDate = new Date(year, month, 1 - startOffset);
     let totalCells = startOffset + daysInMonth;
     let remainder = totalCells % 7;
@@ -458,11 +458,14 @@ async function fetchMonthlyData(minDate, maxDate) {
                 div.className = 'event-item';
                 
                 const fullTitle = ev.summary || '(Không có tiêu đề)';
+                // Lấy description của event nếu có
+                const description = ev.description ? `\n\nDescription: ${ev.description}` : ''; 
 
                 const titleSpan = document.createElement('span');
                 titleSpan.className = 'item-title';
                 titleSpan.innerText = fullTitle;
-                titleSpan.title = fullTitle;
+                // Hiển thị Title + Description khi hover
+                titleSpan.title = fullTitle + description; 
 
                 const delBtn = document.createElement('span');
                 delBtn.className = 'delete-btn';
@@ -494,12 +497,13 @@ async function fetchMonthlyData(minDate, maxDate) {
                 }
                 
                 const fullTitle = task.title || '(No tittle)';
-
+                const notes = task.notes ? `\n\nNote: ${task.notes}` : ''; 
+        
                 const titleSpan = document.createElement('span');
                 titleSpan.className = 'item-title';
                 titleSpan.innerText = fullTitle;
-                titleSpan.title = fullTitle;
-
+                titleSpan.title = fullTitle + notes; 
+        
                 const delBtn = document.createElement('span');
                 delBtn.className = 'delete-btn';
                 delBtn.innerText = '×';
@@ -508,37 +512,37 @@ async function fetchMonthlyData(minDate, maxDate) {
                     e.stopPropagation();
                     deleteItem('task', task.id, fullTitle);
                 });
-
+        
                 div.appendChild(titleSpan);
                 div.appendChild(delBtn);
-
+        
                 div.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-
+        
                     activeTaskContext = task;
-
+        
                     const menu = document.getElementById('custom-context-menu');
                     const toggleItem = document.getElementById('ctx-toggle-status');
-
+        
                     toggleItem.innerText = task.status === 'completed' 
                         ? 'Incomplete' 
                         : 'Complete';
-
+        
                     toggleItem.style.display = 'block';
                     document.getElementById('ctx-add-task').style.display = 'none';
                     document.getElementById('ctx-add-event').style.display = 'none';
-
+        
                     menu.style.display = 'block';
                     
                     const rect = document.body.getBoundingClientRect();
                     const x = e.clientX - rect.left;
                     const y = e.clientY - rect.top;
-
+        
                     menu.style.left = `${x}px`;
                     menu.style.top = `${y}px`;
                 });
-
+        
                 targetCell.appendChild(div);
             }
         });
