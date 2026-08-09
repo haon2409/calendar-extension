@@ -29,6 +29,10 @@ async function updateIcon() {
     const day = days[date.getDay()];
     const dateNum = date.getDate().toString();
 
+    // Xác định số ngày trong tháng hiện tại để chọn màu viền
+    const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    const borderColor = daysInMonth === 31 ? '#ff4d4d' : '#fbbc04';
+
     // Dùng OffscreenCanvas (hỗ trợ trong Manifest V3 Service Worker)
     const canvas = new OffscreenCanvas(128, 128);
     const ctx = canvas.getContext('2d');
@@ -51,6 +55,13 @@ async function updateIcon() {
     // 2. Nền dưới cho "Ngày" (chiều cao từ 64 đến 128)
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 64, 128, 64);
+
+    // 3. Vẽ viền Trái, Dưới, Phải cho phần "Ngày" (Giảm độ dày xuống 6px)
+    const borderWidth = 6;
+    ctx.fillStyle = borderColor;
+    ctx.fillRect(0, 64, borderWidth, 64);                           // Viền trái
+    ctx.fillRect(128 - borderWidth, 64, borderWidth, 64);           // Viền phải
+    ctx.fillRect(0, 128 - borderWidth, 128, borderWidth);           // Viền dưới
 
     // Thiết lập chung cho text
     ctx.textAlign = 'center';
