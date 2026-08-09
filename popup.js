@@ -3,6 +3,8 @@ let accessToken = "";
 let activeTaskContext = null;
 let activeCellDateStr = null;
 let createType = null; // 'task' hoặc 'event'
+let modalMode = 'create'; // 'create' hoặc 'edit'
+let activeItemContext = null; // Lưu trữ đối tượng task/event đang được chọn
 
 document.addEventListener('DOMContentLoaded', () => {
     chrome.identity.getAuthToken({ interactive: false }, function(token) {
@@ -51,12 +53,35 @@ document.getElementById('ctx-add-event').addEventListener('click', () => {
     openAddModal('event');
 });
 
+document.getElementById('ctx-edit-item').addEventListener('click', () => {
+    hideContextMenu();
+    openEditModal();
+});
+
+function openEditModal() {
+    modalMode = 'edit';
+    const modal = document.getElementById('add-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalInput = document.getElementById('modal-input-title');
+    const modalDesc = document.getElementById('modal-input-desc');
+
+    modalTitle.innerText = createType === 'event' ? 'Sửa Sự kiện' : 'Sửa Công việc';
+    
+    // Đổ dữ liệu cũ vào form
+    modalInput.value = createType === 'event' ? (activeItemContext.summary || '') : (activeItemContext.title || '');
+    modalDesc.value = createType === 'event' ? (activeItemContext.description || '') : (activeItemContext.notes || '');
+    
+    modal.style.display = 'flex';
+    modalInput.focus();
+}
+
 // Quản lý Modal nhập title
 function openAddModal(type) {
     if (!accessToken) {
         alert('Vui lòng đồng bộ với Google (Đăng nhập) để sử dụng tính năng này!');
         return;
     }
+    modalMode = 'create'; // Khai báo trạng thái
     createType = type;
     const modal = document.getElementById('add-modal');
     const modalTitle = document.getElementById('modal-title');
@@ -102,36 +127,32 @@ async function submitAddItem() {
 
     try {
         if (createType === 'event') {
-            const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
-            const body = {
-                summary: title,
-                start: { date: activeCellDateStr },
-                end: { date: activeCellDateStr }
-            };
-            if (description) body.description = description;
-
-            await apiRequest(url, {
-                method: 'POST',
-                body: JSON.stringify(body)
-            });
+            const body = { summary: title, description: description };
+            if (modalMode === 'create') {
+                body.start = { date: activeCellDateStr };
+                body.end = { date: activeCellDateStr };
+                const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+                await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
+            } else if (modalMode === 'edit') {
+                const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${activeItemContext.id}`;
+                await apiRequest(url, { method: 'PATCH', body: JSON.stringify(body) });
+            }
         } else if (createType === 'task') {
-            const url = 'https://www.googleapis.com/tasks/v1/lists/@default/tasks';
-            const body = {
-                title: title,
-                due: `${activeCellDateStr}T00:00:00.000Z`
-            };
-            if (description) body.notes = description;
-
-            await apiRequest(url, {
-                method: 'POST',
-                body: JSON.stringify(body)
-            });
+            const body = { title: title, notes: description };
+            if (modalMode === 'create') {
+                body.due = `${activeCellDateStr}T00:00:00.000Z`;
+                const url = 'https://www.googleapis.com/tasks/v1/lists/@default/tasks';
+                await apiRequest(url, { method: 'POST', body: JSON.stringify(body) });
+            } else if (modalMode === 'edit') {
+                const url = `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${activeItemContext.id}`;
+                await apiRequest(url, { method: 'PATCH', body: JSON.stringify(body) });
+            }
         }
         closeAddModal();
         renderCalendar();
     } catch (e) {
-        console.error('Lỗi khi tạo mới:', e);
-        alert('Không thể tạo mới: ' + e.message);
+        console.error('Lỗi khi lưu:', e);
+        alert('Lỗi khi lưu: ' + e.message);
     }
 }
 
@@ -530,28 +551,24 @@ async function fetchMonthlyData(minDate, maxDate) {
                 div.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-        
-                    activeTaskContext = task;
-        
+                
+                    activeItemContext = task;
+                    activeTaskContext = task; // Giữ lại cho Toggle status
+                    createType = 'task';
+                
                     const menu = document.getElementById('custom-context-menu');
                     const toggleItem = document.getElementById('ctx-toggle-status');
-        
-                    toggleItem.innerText = task.status === 'completed' 
-                        ? 'Incomplete' 
-                        : 'Complete';
-        
+                
+                    toggleItem.innerText = task.status === 'completed' ? 'Incomplete' : 'Complete';
                     toggleItem.style.display = 'block';
                     document.getElementById('ctx-add-task').style.display = 'none';
                     document.getElementById('ctx-add-event').style.display = 'none';
-        
+                    document.getElementById('ctx-edit-item').style.display = 'block'; // Hiện nút Edit
+                
                     menu.style.display = 'block';
-                    
                     const rect = document.body.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-        
-                    menu.style.left = `${x}px`;
-                    menu.style.top = `${y}px`;
+                    menu.style.left = `${e.clientX - rect.left}px`;
+                    menu.style.top = `${e.clientY - rect.top}px`;
                 });
         
                 targetCell.appendChild(div);
