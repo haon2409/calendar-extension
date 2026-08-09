@@ -9,9 +9,12 @@
         <div class="header">
             <h2 id="month-year">Tháng 8, 2026</h2>
             <div class="header-right">
-                <!-- Nút Đăng xuất dạng icon SVG -->
-                <button id="logout-google" title="Đồng bộ với Google" style="display: flex;">
-                    <!-- Icon mặc định (Login/Sync) -->
+                <!-- Nút Đăng xuất dạng icon SVG -->                
+                <button id="logout-google" title="Đồng bộ với Google" style="display: flex; align-items: center; gap: 6px; padding: 2px 6px;">
+                    <!-- Thẻ chứa ảnh đại diện, ẩn mặc định khi chưa login -->
+                    <img id="user-avatar" src="" alt="Avatar" style="width: 20px; height: 20px; border-radius: 50%; display: none; object-fit: cover;" />
+                    
+                    <!-- Icon SVG trạng thái -->
                     <svg id="icon-login-state" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
                         <polyline points="10 17 15 12 10 7"></polyline>
@@ -53,24 +56,24 @@
             <h3 id="modal-title">Thêm mới</h3>
             <input type="text" id="modal-input-title" placeholder="Nhập tiêu đề..." autocomplete="off" />
             <textarea id="modal-input-desc" placeholder="Nhập mô tả (không bắt buộc)..." rows="3"></textarea>                        
-            <div id="repeat-container" style="display: none; margin-bottom: 12px; text-align: left; font-size: 12px;">
-                <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+            <div id="repeat-container" class="repeat-container">
+                <label class="repeat-label">
                     <input type="checkbox" id="modal-checkbox-repeat"> Lặp lại (Repeat)
                 </label>
                 
-                <div id="repeat-options" style="display: none; margin-top: 8px; flex-direction: column; gap: 8px;">
-                    <div style="display: flex; gap: 8px;">
-                        <select id="repeat-interval" style="padding: 4px; background: #202124; color: #fff; border: 1px solid #4a4d53; border-radius: 4px; outline: none;"></select>
-                        <select id="repeat-unit" style="padding: 4px; background: #202124; color: #fff; border: 1px solid #4a4d53; border-radius: 4px; outline: none;">
+                <div id="repeat-options" class="repeat-options">
+                    <div class="repeat-row">
+                        <select id="repeat-interval"></select>
+                        <select id="repeat-unit">
                             <option value="days">Days</option>
                             <option value="weeks">Weeks</option>
                             <option value="months">Months</option>
                             <option value="years">Years</option>
                         </select>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 4px;">
+                    <div class="repeat-row">
                         <span>End after</span>
-                        <input type="number" id="repeat-times" min="1" max="100" value="3" style="width: 60px; margin-bottom: 0; padding: 4px;" />
+                        <input type="number" id="repeat-times" min="1" max="100" value="3" />
                         <span>times</span>
                     </div>
                 </div>

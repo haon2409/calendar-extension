@@ -285,6 +285,7 @@ document.getElementById('btn-today').addEventListener('click', () => {
 function showLoginState(isLoggedIn) {
     const logoutBtn = document.getElementById('logout-google');
     const iconSvg = document.getElementById('icon-login-state');
+    const avatarImg = document.getElementById('user-avatar');
     
     logoutBtn.style.display = 'flex';
 
@@ -295,6 +296,8 @@ function showLoginState(isLoggedIn) {
             <polyline points="16 17 21 12 16 7"></polyline>
             <line x1="21" y1="12" x2="9" y2="12"></line>
         `;
+        // Gọi hàm lấy avatar khi đã đăng nhập thành công
+        fetchUserProfile();
     } else {
         logoutBtn.title = "Đồng bộ với Google";
         iconSvg.innerHTML = `
@@ -302,6 +305,11 @@ function showLoginState(isLoggedIn) {
             <polyline points="10 17 15 12 10 7"></polyline>
             <line x1="15" y1="12" x2="3" y2="12"></line>
         `;
+        // Ẩn avatar khi đăng xuất
+        if (avatarImg) {
+            avatarImg.src = '';
+            avatarImg.style.display = 'none';
+        }
     }
 }
 
@@ -707,4 +715,24 @@ function buildItemElement(item, type, dateStr) {
     });
 
     return div;
+}
+
+async function fetchUserProfile() {
+    try {
+        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            const avatarImg = document.getElementById('user-avatar');
+            if (data.picture && avatarImg) {
+                avatarImg.src = data.picture;
+                avatarImg.style.display = 'block'; // Hiển thị avatar khi đã có ảnh
+            }
+
+            console.log('avatarImg: ', avatarImg);
+        }
+    } catch (e) {
+        console.warn('Không thể lấy thông tin profile:', e);
+    }
 }

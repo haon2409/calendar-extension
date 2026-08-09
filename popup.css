@@ -61,10 +61,32 @@ body {
 
 button#logout-google {
     background-color: #4a4d53;
+    width: 100%;
 }
 
 button#logout-google:hover {
     background-color: #d9534f;
+}
+
+#logout-google {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    box-sizing: border-box;
+    max-height: 30px;    
+}
+
+#user-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0; /* Ngăn không cho ảnh bị bóp méo hoặc co lại */
+}
+
+#logout-google svg {
+    flex-shrink: 0; /* Đảm bảo icon SVG luôn giữ nguyên kích thước, không bị đẩy lệch */
 }
 
 .weekdays, .days-grid {
