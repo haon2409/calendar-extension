@@ -3,6 +3,9 @@
     "name": "Google Calendar Sync",
     "version": "1.0",
     "description": "Lịch đồng bộ Google Calendar & Tasks với Logo động",
+    "icons": {
+        "128": "icon.png"
+    },
     "permissions": ["storage", "alarms", "identity"],
     "oauth2": {        
         "client_id": "755541392936-fev1mbtt28jgsqfgv9m54rhsvn90t6vv.apps.googleusercontent.com",

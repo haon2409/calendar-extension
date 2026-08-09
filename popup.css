@@ -80,7 +80,7 @@ button#logout-google:hover {
 
 .weekdays div {
     font-weight: bold;
-    font-size: 13px;
+    font-size: 15px;
 }
 
 .cyan { color: #1bb5d6; }
@@ -117,7 +117,7 @@ button#logout-google:hover {
     border-radius: 50%;
     margin-top: 3px;
     margin-bottom: 3px;
-    font-size: 13px;
+    font-size: 15px;
     cursor: pointer;
     flex-shrink: 0; 
 }
@@ -130,7 +130,7 @@ button#logout-google:hover {
 }
 
 .event-item, .task-item {
-    font-size: 10px;
+    font-size: 11px;
     width: calc(100% - 6px); 
     padding: 1px 3px;
     margin-bottom: 1px;
@@ -334,7 +334,7 @@ button#login-google:hover {
 .lunar-date {
     position: absolute;
     right: 4px;
-    font-size: 9px;
+    font-size: 12px;
     color: #70757a;
     opacity: 0.8;
 }
