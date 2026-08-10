@@ -90,4 +90,32 @@ async function updateIcon() {
 
     const imageData = ctx.getImageData(0, 0, 128, 128);
     chrome.action.setIcon({ imageData: imageData });
+    updateBadgeBackground();
+}
+
+async function updateBadgeBackground() {
+    chrome.identity.getAuthToken({ interactive: false }, async function(token) {
+        if (chrome.runtime.lastError || !token) return;
+
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+        const url = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=true&showHidden=true&dueMin=${start}&dueMax=${end}`;
+
+        try {
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) return;
+            const data = await res.json();
+            
+            if (data && data.items) {
+                const count = data.items.filter(t => t.status !== 'completed').length;
+                const text = count > 0 ? count.toString() : '';
+                chrome.action.setBadgeText({ text: text });
+                chrome.action.setBadgeBackgroundColor({ color: '#ff4d4d' });
+                chrome.action.setBadgeTextColor({ color: '#ffffff' }); // Thêm dòng này
+            }
+        } catch (e) {
+            console.error('Lỗi cập nhật badge:', e);
+        }
+    });
 }

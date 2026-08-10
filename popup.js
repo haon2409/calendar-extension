@@ -268,6 +268,8 @@ async function submitAddItem() {
                 itemNode.replaceWith(buildItemElement(res, 'task', targetDate));
             }
         }
+
+        updateTodayBadge();
     } catch (e) {
         console.error('Lỗi khi lưu:', e);
         alert('Đã xảy ra lỗi, hệ thống sẽ tự đồng bộ lại!');
@@ -411,6 +413,7 @@ async function deleteItem(type, id, title, elementNode) {
             await apiRequest(url, { method: 'DELETE' });
         }
         elementNode.remove();
+        updateTodayBadge();
     } catch (e) {
         elementNode.style.display = originalDisplay; 
         console.error('Lỗi khi xóa:', e);
@@ -442,6 +445,7 @@ async function toggleTaskStatus(taskId, currentStatus) {
             })
         });
         activeTaskContext.status = newStatus;
+        updateTodayBadge();
     } catch (e) {
         node.style.textDecoration = originalTextDeco;
         node.style.opacity = originalOpacity;
@@ -638,6 +642,8 @@ async function fetchMonthlyData(minDate, maxDate) {
             const targetCell = document.getElementById(`date-${dateStr}`);
             if (targetCell) targetCell.appendChild(buildItemElement(task, 'task', dateStr));
         });
+
+        updateTodayBadge();
     } catch (e) {
         console.error('Lỗi tải dữ liệu lịch:', e);
     }
@@ -734,5 +740,24 @@ async function fetchUserProfile() {
         }
     } catch (e) {
         console.warn('Không thể lấy thông tin profile:', e);
+    }
+}
+
+function updateTodayBadge() {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const cell = document.getElementById(`date-${dateStr}`);
+    
+    if (cell) {
+        const tasks = cell.querySelectorAll('.task-item');
+        let count = 0;
+        tasks.forEach(task => {
+            // Task hoàn thành có opacity = '0.7'
+            if (task.style.opacity !== '0.7') count++;
+        });
+        const text = count > 0 ? count.toString() : '';
+        chrome.action.setBadgeText({ text: text });
+        chrome.action.setBadgeBackgroundColor({ color: '#ff4d4d' });
+        chrome.action.setBadgeTextColor({ color: '#ffffff' }); // Thêm dòng này
     }
 }
