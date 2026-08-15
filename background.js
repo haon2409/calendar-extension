@@ -1,3 +1,6 @@
+// Import file lunar.js để sử dụng hàm getLunarDate trong Service Worker
+importScripts('lunar.js');
+
 // Cập nhật icon khi cài đặt hoặc khi trình duyệt khởi động
 chrome.runtime.onInstalled.addListener(() => setupDailyAlarm());
 chrome.runtime.onStartup.addListener(() => updateIcon());
@@ -25,71 +28,57 @@ function setupDailyAlarm() {
 
 async function updateIcon() {
     const date = new Date();
-    const days = ['CN', '2', '3', '4', '5', '6', '7'];
-    const day = days[date.getDay()];
-    const dateNum = date.getDate().toString();
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
 
-    // Xác định số ngày trong tháng hiện tại để chọn màu viền
-    const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-    const borderColor = daysInMonth === 31 ? '#ff4d4d' : '#fbbc04';
+    const lunarInfo = getLunarDate(day, month, year);
+    const lunarDay = lunarInfo[0].toString();
+    const lunarMonth = lunarInfo[1].toString();
 
-    // Dùng OffscreenCanvas (hỗ trợ trong Manifest V3 Service Worker)
     const canvas = new OffscreenCanvas(128, 128);
     const ctx = canvas.getContext('2d');
 
-    // Xóa toàn bộ
-    ctx.clearRect(0, 0, 128, 128);
+    // 1. Cấu hình bo tròn 4 góc (Radius = 20px)
+    const radius = 20;
+    ctx.beginPath();
+    ctx.moveTo(radius, 0);
+    ctx.lineTo(128 - radius, 0);
+    ctx.quadraticCurveTo(128, 0, 128, radius);
+    ctx.lineTo(128, 128 - radius);
+    ctx.quadraticCurveTo(128, 128, 128 - radius, 128);
+    ctx.lineTo(radius, 128);
+    ctx.quadraticCurveTo(0, 128, 0, 128 - radius);
+    ctx.lineTo(0, radius);
+    ctx.quadraticCurveTo(0, 0, radius, 0);
+    ctx.closePath();
+    ctx.clip(); // Cắt toàn bộ nội dung sau này vào phạm vi bo tròn
 
-    // Xác định màu nền và màu chữ cho phần "Thứ" dựa theo ngày
-    let dayBgColor = '#1bb5d6';
-    let dayTextColor = '#000000';
+    // 2. Nền Đen (đã nằm trong vùng bo tròn nhờ clip)
+    ctx.fillStyle = '#1f1f1f';
+    ctx.fillRect(0, 0, 128, 128);
 
-    if (date.getDay() === 0) {
-        dayBgColor = '#ff4d4d'; 
-        dayTextColor = '#ffffff'; 
-    } else if (date.getDay() === 6) {
-        dayBgColor = '#fbbc04'; 
-        dayTextColor = '#ffffff'; 
-    }
+    // 3. Vẽ đường gạch chéo
+    ctx.strokeStyle = '#555555';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(10, 118);
+    ctx.lineTo(118, 10);
+    ctx.stroke();
 
-    // 1. Nền trên cho "Thứ" (chiều cao từ 0 đến 64)
-    ctx.fillStyle = dayBgColor;
-    ctx.fillRect(0, 0, 128, 64);
-
-    // 2. Nền dưới cho "Ngày" (chiều cao từ 64 đến 128)
+    // 4. Render text
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 64, 128, 64);
-
-    // 3. Vẽ viền Trái, Dưới, Phải cho phần "Ngày" (Độ dày 6px)
-    const borderWidth = 6;
-    ctx.fillStyle = borderColor;
-    ctx.fillRect(0, 64, borderWidth, 64);                           
-    ctx.fillRect(128 - borderWidth, 64, borderWidth, 64);           
-    ctx.fillRect(0, 128 - borderWidth, 128, borderWidth);           
-
-    // Thiết lập chung cho text
-    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-
-    // Co giãn chiều ngang (scaleX = 1.35) để chữ bẹt và lấp đầy không gian
-    ctx.save();
-    ctx.scale(1.35, 1.0); 
-    const scaledX = 64 / 1.35;
-
-    // Render "Thứ" với kích thước tối đa (64px) và căn lại tâm y (34px để bù font metric)
-    ctx.fillStyle = dayTextColor; 
-    ctx.font = 'bold 64px sans-serif';
-    ctx.fillText(day, scaledX, 34);
-
-    // Render "Ngày" chữ đen trên nền trắng
-    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'center';
+    
+    // Giữ font kích thước lớn như bạn mong muốn
     ctx.font = 'bold 72px sans-serif';
-    ctx.fillText(dateNum, scaledX, 97);
-
-    ctx.restore();
+    ctx.fillText(lunarDay, 38, 42);
+    ctx.fillText(lunarMonth, 90, 94);
 
     const imageData = ctx.getImageData(0, 0, 128, 128);
     chrome.action.setIcon({ imageData: imageData });
+    
     updateBadgeBackground();
 }
 
@@ -112,7 +101,7 @@ async function updateBadgeBackground() {
                 const text = count > 0 ? count.toString() : '';
                 chrome.action.setBadgeText({ text: text });
                 chrome.action.setBadgeBackgroundColor({ color: '#ff4d4d' });
-                chrome.action.setBadgeTextColor({ color: '#ffffff' }); // Thêm dòng này
+                chrome.action.setBadgeTextColor({ color: '#ffffff' });
             }
         } catch (e) {
             console.error('Lỗi cập nhật badge:', e);
