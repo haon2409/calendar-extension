@@ -72,7 +72,7 @@ async function updateIcon() {
     ctx.textAlign = 'center';
     
     // Giữ font kích thước lớn như bạn mong muốn
-    ctx.font = 'bold 72px sans-serif';
+    ctx.font = 'bold 100px sans-serif';
     ctx.fillText(lunarDay, 38, 42);
     ctx.fillText(lunarMonth, 90, 94);
 
