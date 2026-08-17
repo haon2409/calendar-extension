@@ -1,110 +1,88 @@
-// Import file lunar.js để sử dụng hàm getLunarDate trong Service Worker
-importScripts('lunar.js');
-
-// Cập nhật icon khi cài đặt hoặc khi trình duyệt khởi động
-chrome.runtime.onInstalled.addListener(() => setupDailyAlarm());
+// Thiết lập cập nhật định kỳ (mỗi ngày một lần hoặc khi khởi động)
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.alarms.create('updateIcon', { periodInMinutes: 1440 }); // Cập nhật mỗi 24h
+    updateIcon();
+});
 chrome.runtime.onStartup.addListener(() => updateIcon());
 
-// Lắng nghe sự kiện alarm
 chrome.alarms.onAlarm.addListener((alarm) => { 
     if (alarm.name === 'updateIcon') {
         updateIcon(); 
-        // Sau lần nhảy đúng giao thừa đầu tiên, thiết lập chu kỳ lặp lại mỗi 24 giờ (1440 phút)
-        chrome.alarms.create('updateIcon', { periodInMinutes: 1440 });
     }
 });
 
-function setupDailyAlarm() {
-    updateIcon(); // Cập nhật ngay lập tức
-
-    // Tính số phút còn lại từ bây giờ đến 00:00:01 ngày hôm sau
+// Lấy Ngày hiện tại (trả về chuỗi ngày, ví dụ: "17")
+function getCurrentDay() {
     const now = new Date();
-    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
-    const delayInMinutes = (tomorrow.getTime() - now.getTime()) / (1000 * 60);
-
-    // Đặt lịch hẹn chính xác vào 00:00:01 sáng mai
-    chrome.alarms.create('updateIcon', { delayInMinutes: delayInMinutes });
+    return now.getDate().toString();
 }
 
+// Vẽ logo và cập nhật Icon
 async function updateIcon() {
-    const date = new Date();
-    const day = date.getDate();
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
-
-    const lunarInfo = getLunarDate(day, month, year);
-    const lunarDay = lunarInfo[0].toString();
-    const lunarMonth = lunarInfo[1].toString();
+    const dayText = getCurrentDay();
 
     const canvas = new OffscreenCanvas(128, 128);
     const ctx = canvas.getContext('2d');
+    const bw = 32; // Độ dày của viền màu
 
-    // 1. Cấu hình bo tròn 4 góc (Radius = 20px)
-    const radius = 20;
+    // 1. Tạo path bo tròn 4 góc và cắt chéo góc phải dưới (hiệu ứng nếp gấp)
     ctx.beginPath();
-    ctx.moveTo(radius, 0);
-    ctx.lineTo(128 - radius, 0);
-    ctx.quadraticCurveTo(128, 0, 128, radius);
-    ctx.lineTo(128, 128 - radius);
-    ctx.quadraticCurveTo(128, 128, 128 - radius, 128);
-    ctx.lineTo(radius, 128);
-    ctx.quadraticCurveTo(0, 128, 0, 128 - radius);
-    ctx.lineTo(0, radius);
-    ctx.quadraticCurveTo(0, 0, radius, 0);
+    ctx.moveTo(24, 0);
+    ctx.lineTo(128 - 24, 0);
+    ctx.quadraticCurveTo(128, 0, 128, 24);
+    ctx.lineTo(128, 128 - bw); 
+    ctx.lineTo(128 - bw, 128); // Cắt chéo góc phải dưới
+    ctx.lineTo(24, 128);
+    ctx.quadraticCurveTo(0, 128, 0, 128 - 24);
+    ctx.lineTo(0, 24);
+    ctx.quadraticCurveTo(0, 0, 24, 0);
     ctx.closePath();
-    ctx.clip(); // Cắt toàn bộ nội dung sau này vào phạm vi bo tròn
+    ctx.clip(); 
 
-    // 2. Nền Đen (đã nằm trong vùng bo tròn nhờ clip)
-    ctx.fillStyle = '#1f1f1f';
+    // 2. Nền trắng giữa tâm
+    ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, 128, 128);
 
-    // 3. Vẽ đường gạch chéo
-    ctx.strokeStyle = '#555555';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(10, 118);
-    ctx.lineTo(118, 10);
-    ctx.stroke();
+    // 3. Viền Xanh Dương (Trên và Trái)
+    ctx.fillStyle = '#4285F4';
+    ctx.fillRect(0, 0, 128, bw);
+    ctx.fillRect(0, 0, bw, 128);
 
-    // 4. Render text
-    ctx.fillStyle = '#ffffff';
+    // Điểm giao cắt màu Xanh Dương đậm
+    ctx.fillStyle = '#1A73E8';
+    ctx.fillRect(128 - bw, 0, bw, bw); // Góc trên phải
+    ctx.fillRect(0, 128 - bw, bw, bw); // Góc dưới trái
+
+    // 4. Viền Xanh Lá (Phải)
+    ctx.fillStyle = '#34A853';
+    ctx.fillRect(128 - bw, bw, bw, 128 - bw * 2);
+
+    // 5. Viền Vàng (Dưới)
+    ctx.fillStyle = '#FBBC05';
+    ctx.fillRect(bw, 128 - bw, 128 - bw * 2, bw);
+
+    // 6. Nếp gấp màu Đỏ (Tam giác góc dưới phải)
+    ctx.fillStyle = '#EA4335';
+    ctx.beginPath();
+    ctx.moveTo(128 - bw, 128);
+    ctx.lineTo(128, 128 - bw);
+    ctx.lineTo(128 - bw, 128 - bw);
+    ctx.fill();
+
+    // 7. Render Text (Ngày hiện tại) vào chính giữa
+    ctx.fillStyle = '#4285F4'; 
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
     
-    // Giữ font kích thước lớn như bạn mong muốn
-    ctx.font = 'bold 100px sans-serif';
-    ctx.fillText(lunarDay, 38, 42);
-    ctx.fillText(lunarMonth, 90, 94);
+    // Tăng kích thước font chữ to hơn (55px cho 2 chữ số, 60px cho 1 chữ số)
+    const fontSize = dayText.length > 1 ? 60 : 65;
+    ctx.font = `bold ${fontSize}px "Segoe UI", Roboto, sans-serif`;
+    
+    // Đặt chữ ở tọa độ (64, 64) là tâm tuyệt đối của khung hình
+    ctx.fillText(dayText, 64, 66); // Offset Y xuống 2px để chữ cân bằng mặt thị giác
 
+    // 8. Cập nhật icon và xóa Badge
     const imageData = ctx.getImageData(0, 0, 128, 128);
     chrome.action.setIcon({ imageData: imageData });
-    
-    updateBadgeBackground();
-}
-
-async function updateBadgeBackground() {
-    chrome.identity.getAuthToken({ interactive: false }, async function(token) {
-        if (chrome.runtime.lastError || !token) return;
-
-        const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
-        const url = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=true&showHidden=true&dueMin=${start}&dueMax=${end}`;
-
-        try {
-            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (!res.ok) return;
-            const data = await res.json();
-            
-            if (data && data.items) {
-                const count = data.items.filter(t => t.status !== 'completed').length;
-                const text = count > 0 ? count.toString() : '';
-                chrome.action.setBadgeText({ text: text });
-                chrome.action.setBadgeBackgroundColor({ color: '#ff4d4d' });
-                chrome.action.setBadgeTextColor({ color: '#ffffff' });
-            }
-        } catch (e) {
-            console.error('Lỗi cập nhật badge:', e);
-        }
-    });
+    chrome.action.setBadgeText({ text: '' }); 
 }
